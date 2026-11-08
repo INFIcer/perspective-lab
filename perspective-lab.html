@@ -1,0 +1,3889 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#f3f6fc">
+<title>透视实验室 · Perspective Lab</title>
+<style>
+/* ============================================================
+   透视实验室 · Perspective Lab — visual system (light)
+   ============================================================ */
+:root {
+  --x: #d6456a;
+  --y: #0a8574;
+  --z: #3d6fe8;
+  --x-soft: rgba(214, 69, 106, .12);
+  --y-soft: rgba(10, 133, 116, .12);
+  --z-soft: rgba(61, 111, 232, .12);
+  --accent: #4b6bfb;
+  --accent-soft: rgba(75, 107, 251, .10);
+  --ink: #17233d;
+  --ink-2: #4d5e7b;
+  --ink-3: #8492a9;
+  --line: rgba(38, 66, 112, .10);
+  --line-strong: rgba(38, 66, 112, .17);
+  --glass: linear-gradient(168deg, rgba(255, 255, 255, .92) 0%, rgba(246, 249, 255, .84) 100%);
+  --radius: 20px;
+  --ease: cubic-bezier(.22, .61, .36, 1);
+  --font: "Segoe UI Variable Display", "Segoe UI", "PingFang SC", "Hiragino Sans GB",
+          "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  background:
+    radial-gradient(1150px 780px at 76% -10%, rgba(170, 197, 255, .52), transparent 64%),
+    radial-gradient(900px 660px at 46% 100%, rgba(170, 226, 214, .34), transparent 66%),
+    radial-gradient(760px 560px at 6% 108%, rgba(196, 214, 245, .38), transparent 62%),
+    linear-gradient(180deg, #f6f8fd 0%, #eef3fb 100%);
+  color: var(--ink);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  user-select: none;
+}
+
+#app { position: fixed; inset: 0; isolation: isolate; }
+
+/* 极淡的暗角与纸张颗粒 */
+#app::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: radial-gradient(125% 95% at 50% 44%, transparent 58%, rgba(48, 74, 122, .07) 100%);
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  opacity: .018;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+#stage {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: grab;
+  opacity: 0;
+  animation: stageIn .9s var(--ease) .1s both;
+}
+#stage.is-grabbing { cursor: grabbing; }
+#stage.is-handle { cursor: pointer; }
+#stage.is-rotate-handle { cursor: crosshair; }
+#stage.is-cube-hover { cursor: pointer; }
+
+@keyframes stageIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* ============================ top bar ============================ */
+.topbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 20;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 24px 28px 0;
+  pointer-events: none;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  pointer-events: auto;
+  animation: fadeDown .8s var(--ease) .15s both;
+}
+
+.brand-mark {
+  width: 38px;
+  height: 38px;
+  filter: drop-shadow(0 8px 18px rgba(76, 108, 180, .28));
+}
+
+.brand-title {
+  font-size: 16.5px;
+  font-weight: 680;
+  letter-spacing: .10em;
+  color: var(--ink);
+}
+
+.brand-sub {
+  margin-top: 4px;
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: .34em;
+  color: var(--ink-3);
+}
+
+.badge {
+  position: absolute;
+  top: 26px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 99px;
+  border: 1px solid rgba(255, 255, 255, .8);
+  background: rgba(255, 255, 255, .72);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  font-size: 11.5px;
+  color: var(--ink-2);
+  letter-spacing: .04em;
+  box-shadow: 0 12px 28px -14px rgba(40, 66, 110, .35), 0 0 0 1px rgba(38, 66, 112, .045), 0 1px 0 rgba(255, 255, 255, .9) inset;
+  animation: fadeDown .8s var(--ease) .25s both;
+  white-space: nowrap;
+}
+
+.badge-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px rgba(75, 107, 251, .7);
+  animation: dotPulse 2.6s ease-in-out infinite;
+}
+.badge[data-type="1"] .badge-dot { background: var(--y); box-shadow: 0 0 8px rgba(10, 133, 116, .65); }
+.badge[data-type="2"] .badge-dot { background: var(--z); box-shadow: 0 0 8px rgba(61, 111, 232, .65); }
+.badge[data-type="3"] .badge-dot { background: var(--x); box-shadow: 0 0 8px rgba(214, 69, 106, .6); }
+.badge-text { color: var(--ink); font-weight: 650; }
+.badge-sep { width: 1px; height: 12px; background: var(--line-strong); }
+.badge-meta { color: var(--ink-3); font-size: 10px; letter-spacing: .12em; font-variant-numeric: tabular-nums; }
+
+@keyframes dotPulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+
+.badge-note {
+  position: absolute;
+  top: 66px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  font-size: 10.5px;
+  letter-spacing: .055em;
+  color: rgba(90, 108, 137, .72);
+  white-space: nowrap;
+  pointer-events: none;
+  animation: fadeDown .8s var(--ease) .32s both;
+  transition: opacity .3s var(--ease);
+}
+@media (max-width: 1240px) { .badge-note { display: none; } }
+
+.top-meta {
+  position: absolute;
+  top: 32px;
+  right: 30px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--ink-3);
+  letter-spacing: .1em;
+  font-variant-numeric: tabular-nums;
+  animation: fadeDown .8s var(--ease) .3s both;
+}
+.meta-dot { width: 5px; height: 5px; border-radius: 50%; background: rgba(10, 133, 116, .75); box-shadow: 0 0 7px rgba(10, 133, 116, .5); }
+.meta-unit { opacity: .7; }
+
+/* ============================ panels ============================ */
+.panel {
+  position: fixed;
+  z-index: 10;
+  width: 252px;
+  padding: 17px 16px;
+  border-radius: var(--radius);
+  max-height: calc(100vh - 170px);
+  overflow-y: auto;
+  scrollbar-width: none;
+  transition: transform .46s var(--ease), opacity .34s var(--ease);
+  border: 1px solid rgba(255, 255, 255, .85);
+  background: var(--glass);
+  backdrop-filter: blur(24px) saturate(125%);
+  -webkit-backdrop-filter: blur(24px) saturate(125%);
+  box-shadow:
+    0 30px 60px -30px rgba(32, 58, 104, .38),
+    0 12px 26px -22px rgba(32, 58, 104, .28),
+    0 0 0 1px rgba(38, 66, 112, .055),
+    0 1px 0 rgba(255, 255, 255, .95) inset;
+  animation: panelIn .8s var(--ease) both;
+}
+.panel::-webkit-scrollbar { display: none; }
+.panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .65), transparent 22%);
+}
+.panel-left { left: 24px; top: 96px; animation-delay: .12s; }
+.panel-right { right: 24px; top: 96px; width: 264px; animation-delay: .2s; }
+
+.panel-left.is-collapsed { transform: translateX(calc(-100% - 44px)); opacity: 0; pointer-events: none; }
+.panel-right.is-collapsed { transform: translateX(calc(100% + 44px)); opacity: 0; pointer-events: none; }
+
+.panel-collapse {
+  position: absolute;
+  top: 11px;
+  right: 11px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid rgba(38, 66, 112, .1);
+  background: rgba(255, 255, 255, .55);
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: background .2s var(--ease), color .2s var(--ease), border-color .2s var(--ease);
+}
+.panel-collapse svg { width: 13px; height: 13px; }
+.panel-collapse:hover {
+  background: rgba(75, 107, 251, .1);
+  border-color: rgba(75, 107, 251, .25);
+  color: var(--accent);
+}
+
+.panel-tab {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  position: fixed;
+  top: 96px;
+  z-index: 14;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, .92);
+  background: rgba(255, 255, 255, .8);
+  backdrop-filter: blur(18px) saturate(125%);
+  -webkit-backdrop-filter: blur(18px) saturate(125%);
+  color: #4a5f86;
+  cursor: pointer;
+  box-shadow: 0 14px 30px -16px rgba(32, 58, 104, .5), 0 0 0 1px rgba(38, 66, 112, .05), 0 1px 0 rgba(255, 255, 255, .9) inset;
+  transition: background .2s var(--ease), color .2s var(--ease), transform .2s var(--ease);
+}
+.panel-tab svg { width: 16px; height: 16px; }
+.panel-tab.is-visible { display: flex; }
+.panel-tab-left { left: 24px; }
+.panel-tab-right { right: 24px; }
+.panel-tab:hover { background: rgba(255, 255, 255, .98); color: var(--accent); transform: translateY(-1px); }
+
+@keyframes panelIn {
+  from { opacity: 0; transform: translateY(16px) scale(.985); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes fadeDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.panel-section + .panel-section {
+  margin-top: 16px;
+  padding-top: 15px;
+  border-top: 1px solid var(--line);
+}
+
+.section-title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 11px;
+  padding-right: 28px;
+  font-size: 11.5px;
+  font-weight: 650;
+  letter-spacing: .08em;
+  color: var(--ink-2);
+}
+.section-title span {
+  margin-left: auto;
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: .2em;
+  color: var(--ink-3);
+  opacity: .8;
+}
+
+/* ---------- cube list ---------- */.cube-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 0 10px;
+}
+.cube-list {
+  flex: 1;
+  display: flex;
+  gap: 5px;
+  padding: 1px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.cube-list::-webkit-scrollbar { display: none; }
+.cube-chip {
+  flex: none;
+  width: 27px;
+  height: 27px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid rgba(38, 66, 112, .1);
+  background: rgba(255, 255, 255, .6);
+  color: var(--ink-2);
+  font-family: inherit;
+  font-size: 10.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .2s var(--ease), border-color .2s var(--ease),
+              color .2s var(--ease), box-shadow .2s var(--ease), transform .2s var(--ease);
+}
+.cube-chip:hover {
+  border-color: rgba(75, 107, 251, .3);
+  background: rgba(75, 107, 251, .08);
+  transform: translateY(-1px);
+}
+.cube-chip.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: 0 4px 10px -4px rgba(75, 107, 251, .7);
+}
+.cube-btn {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 27px;
+  height: 27px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid rgba(38, 66, 112, .1);
+  background: rgba(255, 255, 255, .62);
+  color: var(--ink-2);
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background .2s var(--ease), border-color .2s var(--ease),
+              color .2s var(--ease), transform .2s var(--ease);
+}
+.cube-btn svg { width: 14px; height: 14px; }
+.cube-btn:hover {
+  background: rgba(75, 107, 251, .1);
+  border-color: rgba(75, 107, 251, .3);
+  color: var(--accent);
+  transform: translateY(-1px);
+}
+.cube-btn.danger:hover {
+  background: rgba(214, 69, 106, .09);
+  border-color: rgba(214, 69, 106, .3);
+  color: var(--x);
+}
+.cube-btn:disabled {
+  opacity: .35;
+  cursor: not-allowed;
+  transform: none;
+  background: rgba(255, 255, 255, .4);
+  border-color: rgba(38, 66, 112, .08);
+  color: var(--ink-3);
+}
+
+/* ---------- presets ---------- */
+.preset-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+
+.preset {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  padding: 9px 10px 8px;
+  border-radius: 11px;
+  border: 1px solid rgba(38, 66, 112, .08);
+  background: rgba(255, 255, 255, .6);
+  color: var(--ink-2);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background .22s var(--ease), border-color .22s var(--ease),
+              transform .22s var(--ease), color .22s var(--ease), box-shadow .22s var(--ease);
+}
+.preset:hover {
+  background: rgba(75, 107, 251, .07);
+  border-color: rgba(75, 107, 251, .24);
+  color: var(--ink);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px -12px rgba(43, 72, 140, .35);
+}
+.preset:active { transform: translateY(0) scale(.985); }
+.preset.is-active {
+  background: linear-gradient(150deg, rgba(75, 107, 251, .15), rgba(75, 107, 251, .045));
+  border-color: rgba(75, 107, 251, .42);
+  color: var(--ink);
+  box-shadow: 0 8px 20px -14px rgba(75, 107, 251, .7), 0 0 0 1px rgba(75, 107, 251, .08) inset;
+}
+.preset-name { font-size: 12px; font-weight: 650; letter-spacing: .02em; }
+.preset-sub { font-size: 7.5px; letter-spacing: .16em; color: var(--ink-3); }
+.preset.is-active .preset-sub { color: rgba(62, 96, 190, .7); }
+
+/* ---------- vanishing point list ---------- */
+.vp-list { display: flex; flex-direction: column; gap: 2px; }
+
+.vp-row {
+  display: grid;
+  grid-template-columns: 8px 46px 1fr;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 8px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background .2s var(--ease), border-color .2s var(--ease);
+}
+.vp-row:hover, .vp-row.is-hot {
+  background: rgba(38, 66, 112, .045);
+  border-color: rgba(38, 66, 112, .06);
+}
+.vp-row .dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--c, var(--accent));
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, .55);
+  opacity: .45;
+  transition: opacity .25s var(--ease), transform .25s var(--ease);
+}
+.vp-row.is-finite .dot { opacity: 1; }
+.vp-row[data-axis="0"] { --c: var(--x); }
+.vp-row[data-axis="1"] { --c: var(--y); }
+.vp-row[data-axis="2"] { --c: var(--z); }
+.vp-row .name { font-size: 11.5px; color: var(--ink-2); letter-spacing: .02em; }
+.vp-row .state {
+  justify-self: end;
+  font-size: 10px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .01em;
+}
+.vp-row.is-finite .state { color: var(--ink-2); }
+.vp-row.is-out .state { color: rgba(109, 124, 148, .72); }
+
+/* ---------- toggles ---------- */
+.toggle-list { display: flex; flex-direction: column; gap: 1px; }
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 6px 6px 8px;
+  border-radius: 9px;
+  font-size: 11.5px;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: background .18s var(--ease), color .18s var(--ease);
+}
+.toggle-row:hover { background: rgba(38, 66, 112, .04); color: var(--ink); }
+.toggle-row.is-disabled { opacity: .45; }
+.toggle-row.is-disabled:hover { background: transparent; color: var(--ink-2); }
+.toggle-row input { position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none; }
+
+.switch {
+  position: relative;
+  flex: none;
+  width: 30px;
+  height: 17px;
+  border-radius: 99px;
+  background: #dfe6f0;
+  border: 1px solid rgba(38, 66, 112, .08);
+  transition: background .22s var(--ease), border-color .22s var(--ease), box-shadow .22s var(--ease);
+}
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 1.5px; left: 2px;
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(32, 55, 95, .25);
+  transition: transform .24s var(--ease), background .24s var(--ease), box-shadow .24s var(--ease);
+}
+.toggle-row input:checked + .switch {
+  background: #4b6bfb;
+  border-color: #4b6bfb;
+  box-shadow: 0 2px 8px -2px rgba(75, 107, 251, .55);
+}
+.toggle-row input:checked + .switch::after {
+  transform: translateX(13px);
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(20, 40, 100, .35);
+}
+.toggle-row input:focus-visible + .switch { outline: 2px solid rgba(75, 107, 251, .65); outline-offset: 2px; }
+
+/* ---------- segmented control ---------- */
+.segmented {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 3px;
+  border-radius: 11px;
+  background: rgba(38, 66, 112, .055);
+  border: 1px solid rgba(38, 66, 112, .05);
+}
+.seg {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 29px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-3);
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: .03em;
+  cursor: pointer;
+  transition: color .22s var(--ease);
+}
+.seg:hover { color: var(--ink-2); }
+.seg.is-active { color: var(--ink); }
+.seg kbd {
+  font-family: inherit;
+  font-size: 8.5px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 4px;
+  border: 1px solid rgba(38, 66, 112, .1);
+  background: rgba(255, 255, 255, .6);
+  color: var(--ink-3);
+}
+.seg-thumb {
+  position: absolute;
+  z-index: 1;
+  top: 3px; left: 3px;
+  width: calc(50% - 3px);
+  height: calc(100% - 6px);
+  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid rgba(75, 107, 251, .3);
+  box-shadow: 0 3px 10px -4px rgba(43, 72, 140, .35), 0 1px 0 rgba(255, 255, 255, .9) inset;
+  transition: transform .32s var(--ease);
+  pointer-events: none;
+}
+.segmented.is-rotate .seg-thumb { transform: translateX(100%); }
+.segmented.is-second .seg-thumb { transform: translateX(100%); }
+.segmented.is-none .seg-thumb { transform: translateX(200%); }
+
+/* 三档模式（移动 / 旋转 / 无操作） */
+.segmented.mode-3 { grid-template-columns: repeat(3, 1fr); }
+.segmented.mode-3 .seg-thumb { width: calc(33.333% - 2px); top: 2px; left: 2px; height: calc(100% - 4px); }
+.segmented.mode-3.is-rotate .seg-thumb { transform: translateX(100%); }
+.segmented.mode-3.is-none .seg-thumb { transform: translateX(200%); }
+.segmented.mode-3 .seg { gap: 4px; font-size: 10.5px; }
+.segmented.mode-3 .seg kbd { font-size: 8px; padding: 2px 3px; }
+
+.segmented.is-compact { padding: 2px; border-radius: 10px; }
+.segmented.is-compact .seg { height: 25px; font-size: 11px; }
+.segmented.is-compact .seg-thumb {
+  top: 2px; left: 2px;
+  width: calc(50% - 2px);
+  height: calc(100% - 4px);
+  border-radius: 7px;
+}
+
+.gizmo-tip {
+  margin: 7px 2px 9px;
+  font-size: 9px;
+  line-height: 1.5;
+  letter-spacing: .01em;
+  color: var(--ink-3);
+}
+
+.field-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 11px 2px 6px;
+  font-size: 10.5px;
+  letter-spacing: .06em;
+  color: var(--ink-2);
+}
+.field-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 8.5px;
+  letter-spacing: .1em;
+  color: var(--ink-3);
+  text-transform: uppercase;
+}
+.field-hint kbd {
+  font-family: inherit;
+  font-size: 8px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 4px;
+  border: 1px solid rgba(38, 66, 112, .1);
+  background: rgba(255, 255, 255, .65);
+  color: var(--ink-3);
+}
+
+/* ---------- readouts ---------- */
+.readouts {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 10px 0 11px;
+  padding: 4px 2px;
+}
+.readout {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 4px 6px;
+  border-radius: 6px;
+}
+.readout-label {
+  font-size: 10px;
+  letter-spacing: .1em;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.readout-value {
+  font-size: 11px;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .03em;
+  white-space: nowrap;
+}
+
+/* ---------- buttons ---------- */
+.btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 31px;
+  padding: 0 10px;
+  border-radius: 9px;
+  border: 1px solid rgba(38, 66, 112, .1);
+  background: rgba(255, 255, 255, .62);
+  color: var(--ink-2);
+  font-family: inherit;
+  font-size: 10.5px;
+  letter-spacing: .03em;
+  cursor: pointer;
+  transition: background .2s var(--ease), border-color .2s var(--ease),
+              color .2s var(--ease), transform .2s var(--ease), box-shadow .2s var(--ease);
+}
+.btn:hover {
+  background: rgba(75, 107, 251, .08);
+  border-color: rgba(75, 107, 251, .28);
+  color: var(--ink);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px -10px rgba(43, 72, 140, .5);
+}
+.btn:active { transform: translateY(0) scale(.985); }
+.btn kbd {
+  font-family: inherit;
+  font-size: 8px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 4px;
+  border: 1px solid rgba(38, 66, 112, .1);
+  color: var(--ink-3);
+}
+
+/* ---------- slider ---------- */
+.slider-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 2px 2px 7px;
+  font-size: 10.5px;
+  color: var(--ink-2);
+  letter-spacing: .06em;
+}
+.slider-head b { font-size: 11px; color: var(--accent); font-weight: 650; font-variant-numeric: tabular-nums; }
+
+.slider {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 18px;
+  margin: 0 0 4px;
+  background: transparent;
+  cursor: pointer;
+}
+.slider::-webkit-slider-runnable-track {
+  height: 3px;
+  border-radius: 99px;
+  background: linear-gradient(90deg, rgba(75, 107, 251, .55), rgba(75, 107, 251, .16));
+}
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 13px; height: 13px;
+  margin-top: -5px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1px solid rgba(75, 107, 251, .55);
+  box-shadow: 0 2px 6px rgba(40, 66, 110, .28);
+  transition: box-shadow .2s var(--ease);
+}
+.slider:hover::-webkit-slider-thumb { box-shadow: 0 0 0 4px rgba(75, 107, 251, .15), 0 2px 8px rgba(40, 66, 110, .3); }
+.slider::-moz-range-track { height: 3px; border-radius: 99px; background: rgba(75, 107, 251, .28); }
+.slider::-moz-range-thumb { width: 13px; height: 13px; border: 1px solid rgba(75, 107, 251, .6); border-radius: 50%; background: #fff; box-shadow: 0 2px 6px rgba(40, 66, 110, .3); }
+
+/* ---------- hints ---------- */
+.hintbar {
+  position: fixed;
+  right: 24px;
+  bottom: 22px;
+  bottom: max(22px, env(safe-area-inset-bottom, 22px));
+  transform: none;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 16px;
+  border-radius: 99px;
+  border: 1px solid rgba(255, 255, 255, .9);
+  background: rgba(255, 255, 255, .68);
+  backdrop-filter: blur(18px) saturate(130%);
+  -webkit-backdrop-filter: blur(18px) saturate(130%);
+  box-shadow: 0 14px 34px -18px rgba(32, 58, 104, .45), 0 0 0 1px rgba(38, 66, 112, .04), 0 1px 0 rgba(255, 255, 255, .9) inset;
+  font-size: 10.5px;
+  color: #6b7a92;
+  white-space: nowrap;
+  animation: panelIn .8s var(--ease) .35s both;
+}
+.hint b { color: #31415f; font-weight: 600; }
+.hint-sep { width: 1px; height: 11px; background: var(--line); flex: none; }
+
+.corner-note {
+  display: none;
+}
+
+/* ---------- focus ---------- */
+button:focus-visible, input:focus-visible {
+  outline: 2px solid rgba(75, 107, 251, .55);
+  outline-offset: 2px;
+}
+
+/* ---------- mobile panel toggle ---------- */
+.panel-toggle { display: none; }
+
+/* ---------- responsive ---------- */
+@media (max-width: 1240px) {
+  .hintbar { gap: 8px; padding: 8px 13px; }
+  .hint:nth-child(n+7), .hint-sep:nth-child(n+7) { display: none; }
+}
+
+@media (max-width: 1080px) {
+  .panel { width: 228px; padding: 15px 13px; }
+  .panel-right { width: 238px; }
+  .hintbar { display: none; }
+}
+
+@media (max-width: 900px) {
+  .panel-left { display: none; }
+  .panel-collapse, .panel-tab { display: none !important; }
+  .panel-right {
+    top: auto;
+    right: 12px;
+    bottom: 74px;
+    width: min(282px, calc(100vw - 24px));
+    max-height: min(58vh, 540px);
+    overflow-y: auto;
+    scrollbar-width: none;
+    animation: none;
+    opacity: 0;
+    transform: translateY(calc(100% + 120px));
+    pointer-events: none;
+    transition: transform .42s var(--ease), opacity .3s var(--ease);
+    z-index: 25;
+  }
+  .panel-right::-webkit-scrollbar { display: none; }
+  .panel-right.is-open { opacity: 1; transform: none; pointer-events: auto; }
+
+  .panel-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    right: 14px;
+    bottom: 16px;
+    z-index: 30;
+    width: 46px;
+    height: 46px;
+    border-radius: 15px;
+    border: 1px solid rgba(255, 255, 255, .95);
+    background: rgba(255, 255, 255, .78);
+    backdrop-filter: blur(18px) saturate(130%);
+    -webkit-backdrop-filter: blur(18px) saturate(130%);
+    color: #4a5f86;
+    cursor: pointer;
+    box-shadow: 0 14px 30px -14px rgba(32, 58, 104, .45), 0 0 0 1px rgba(38, 66, 112, .045), 0 1px 0 rgba(255, 255, 255, .9) inset;
+    transition: background .22s var(--ease), color .22s var(--ease), transform .22s var(--ease);
+  }
+  .panel-toggle:hover { background: rgba(255, 255, 255, .95); color: var(--accent); }
+  .panel-toggle:active { transform: scale(.95); }
+  .panel-toggle[aria-expanded="true"] {
+    background: rgba(75, 107, 251, .1);
+    border-color: rgba(75, 107, 251, .35);
+    color: var(--accent);
+  }
+  .panel-toggle svg { width: 20px; height: 20px; }
+
+  .topbar { padding: 18px 18px 0; }
+  .top-meta { right: 20px; }
+  .brand-sub { display: none; }
+  .badge { top: 20px; height: 28px; padding: 0 11px; font-size: 10.5px; }
+}
+
+@media (max-width: 640px) {
+  .brand-title { font-size: 14px; }
+  .badge { left: auto; right: 18px; transform: none; }
+  .top-meta { display: none; }
+  .panel-right .readouts { display: none; }
+  .panel-right .btn-row { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001s !important; transition-duration: .001s !important; }
+}
+
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="stage" aria-label="三维透视场景"></canvas>
+
+  <header class="topbar">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="brandGrad" x1="6" y1="4" x2="42" y2="44" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#7fa6ff"/>
+            <stop offset=".55" stop-color="#4b6bfb"/>
+            <stop offset="1" stop-color="#13a894"/>
+          </linearGradient>
+        </defs>
+        <path d="M24 3.6 42.4 14v20L24 44.4 5.6 34V14L24 3.6Z" stroke="url(#brandGrad)" stroke-width="1.5"/>
+        <path d="M24 3.6v20.2m0 0L5.6 14M24 23.8 42.4 14M24 23.8v20.6" stroke="url(#brandGrad)" stroke-width="1.05" opacity=".55"/>
+        <circle cx="24" cy="23.8" r="2.1" fill="#ffffff" stroke="#4b6bfb" stroke-width="1.2"/>
+        <circle cx="24" cy="23.8" r="5.2" stroke="#4b6bfb" stroke-opacity=".3"/>
+      </svg>
+      <div class="brand-text">
+        <div class="brand-title">透视实验室</div>
+        <div class="brand-sub">PERSPECTIVE&nbsp;LAB</div>
+      </div>
+    </div>
+
+    <div class="badge" id="badge">
+      <span class="badge-dot" id="badgeDot"></span>
+      <span class="badge-text" id="badgeText">两点透视</span>
+      <span class="badge-sep"></span>
+      <span class="badge-meta" id="badgeMeta">2 VP</span>
+    </div>
+    <div class="badge-note" id="badgeNote">两组水平棱分别向两侧消失 · 竖直棱保持平行</div>
+
+    <div class="top-meta">
+      <span class="meta-dot"></span>
+      <span id="fps">60</span><span class="meta-unit">FPS</span>
+    </div>
+  </header>
+
+  <aside class="panel panel-left" id="panelLeft">
+    <button class="panel-collapse" id="collapseLeft" type="button" title="收起左侧面板" aria-label="收起左侧面板" aria-expanded="true">
+      <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M10 3 5 8l5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <section class="panel-section">
+      <h2 class="section-title">视角预设<span>PRESETS</span></h2>
+      <div class="preset-grid" id="presetGrid">
+        <button class="preset" data-preset="one" type="button" title="一点透视（快捷键 1）">
+          <span class="preset-name">一点透视</span><span class="preset-sub">ONE-POINT</span>
+        </button>
+        <button class="preset" data-preset="two" type="button" title="两点透视（快捷键 2）">
+          <span class="preset-name">两点透视</span><span class="preset-sub">TWO-POINT</span>
+        </button>
+        <button class="preset" data-preset="three" type="button" title="三点透视（快捷键 3）">
+          <span class="preset-name">三点透视</span><span class="preset-sub">THREE-POINT</span>
+        </button>
+        <button class="preset" data-preset="aerial" type="button" title="俯瞰视角（快捷键 4）">
+          <span class="preset-name">俯瞰视角</span><span class="preset-sub">AERIAL</span>
+        </button>
+      </div>
+    </section>
+
+    <section class="panel-section">
+      <h2 class="section-title">消失点<span>VANISHING POINTS</span></h2>
+      <div class="vp-list" id="vpList">
+        <button class="vp-row" data-axis="0" type="button" title="悬停高亮 X 轴消失线，点击固定高亮">
+          <span class="dot"></span><span class="name">X 轴</span><span class="state">—</span>
+        </button>
+        <button class="vp-row" data-axis="1" type="button" title="悬停高亮 Y 轴消失线，点击固定高亮">
+          <span class="dot"></span><span class="name">Y 轴</span><span class="state">—</span>
+        </button>
+        <button class="vp-row" data-axis="2" type="button" title="悬停高亮 Z 轴消失线，点击固定高亮">
+          <span class="dot"></span><span class="name">Z 轴</span><span class="state">—</span>
+        </button>
+      </div>
+    </section>
+
+    <section class="panel-section">
+      <h2 class="section-title">显示<span>DISPLAY</span></h2>
+      <div class="toggle-list">
+        <label class="toggle-row"><span>消失线</span><input type="checkbox" id="tgLines" checked><i class="switch"></i></label>
+        <label class="toggle-row"><span>消失点</span><input type="checkbox" id="tgPoints" checked><i class="switch"></i></label>
+        <label class="toggle-row" title="为未选中的立方体显示消失线"><span>其他立方体消失线</span><input type="checkbox" id="tgOtherLines" checked><i class="switch"></i></label>
+        <label class="toggle-row" title="为未选中的立方体显示消失点"><span>其他立方体消失点</span><input type="checkbox" id="tgOtherPoints" checked><i class="switch"></i></label>
+        <label class="toggle-row"><span>地平线</span><input type="checkbox" id="tgHorizon" checked><i class="switch"></i></label>
+        <label class="toggle-row"><span>地面网格</span><input type="checkbox" id="tgGrid" checked><i class="switch"></i></label>
+        <label class="toggle-row" title="关闭后立方体为半透明玻璃材质"><span>方块不透明</span><input type="checkbox" id="tgOpaque" checked><i class="switch"></i></label>
+        <label class="toggle-row"><span>隐藏棱线</span><input type="checkbox" id="tgHidden" checked><i class="switch"></i></label>
+        <label class="toggle-row"><span>标注文字</span><input type="checkbox" id="tgLabels" checked><i class="switch"></i></label>
+      </div>
+    </section>
+  </aside>
+
+  <aside class="panel panel-right" id="panelRight">
+    <button class="panel-collapse" id="collapseRight" type="button" title="收起右侧面板" aria-label="收起右侧面板" aria-expanded="true">
+      <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <section class="panel-section">
+      <h2 class="section-title">立方体<span>CUBE</span></h2>
+      <div class="cube-toolbar">
+        <div class="cube-list" id="cubeList" aria-label="立方体列表"></div>
+        <button class="cube-btn" id="btnAddCube" type="button" title="添加立方体" aria-label="添加立方体">+</button>
+        <button class="cube-btn danger" id="btnDeleteCube" type="button" title="删除选中的立方体" aria-label="删除选中的立方体">
+          <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M5 4.5l.6 8.5h4.8l.6-8.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <div class="segmented mode-3" id="modeSeg">
+        <button class="seg is-active" data-mode="move" type="button" title="移动立方体（G）">移动<kbd>G</kbd></button>
+        <button class="seg" data-mode="rotate" type="button" title="旋转立方体（R）">旋转<kbd>R</kbd></button>
+        <button class="seg" data-mode="none" type="button" title="隐藏变换手柄，仅观察（H）">无操作<kbd>H</kbd></button>
+        <span class="seg-thumb" id="segThumb"></span>
+      </div>
+
+      <div class="gizmo-tip">轴箭头 = 单轴移动 · 方块 = 平面二维移动 · 圆环 = 绕轴旋转 · 白色外环 = 视角自由旋转</div>
+
+      <div class="field-head">
+        <span>坐标系</span>
+        <span class="field-hint">全局 / 本地 <kbd>L</kbd></span>
+      </div>
+      <div class="segmented is-compact is-second" id="spaceSeg">
+        <button class="seg" data-space="global" type="button" title="手柄沿世界坐标轴（快捷键 L 切换）">全局</button>
+        <button class="seg is-active" data-space="local" type="button" title="手柄随立方体自身坐标轴（快捷键 L 切换）">本地</button>
+        <span class="seg-thumb" id="spaceThumb"></span>
+      </div>
+      <div class="readouts">
+        <div class="readout"><span class="readout-label">位置</span><span class="readout-value" id="cubePos">0.00&nbsp; 0.90&nbsp; 0.00</span></div>
+        <div class="readout"><span class="readout-label">旋转</span><span class="readout-value" id="cubeRot">0°&nbsp; 0°&nbsp; 0°</span></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" id="btnAlign" type="button" title="把立方体旋转回与世界轴对齐">对齐世界轴</button>
+        <button class="btn" id="btnResetCube" type="button" title="立方体回到初始位置和角度">复位</button>
+      </div>
+      <label class="toggle-row" title="立方体缓慢自转，观察消失点实时变化"><span>自动旋转</span><input type="checkbox" id="tgSpin"><i class="switch"></i></label>
+    </section>
+
+    <section class="panel-section">
+      <h2 class="section-title">摄像机<span>CAMERA</span></h2>
+      <div class="slider-head"><span>视场角</span><b id="fovValue">90°</b></div>
+      <input class="slider" id="fovRange" type="range" min="24" max="100" step="1" value="90" aria-label="视场角" title="镜头视场角：越大越广，消失点越靠近画面中心">
+      <div class="readouts">
+        <div class="readout"><span class="readout-label">等效焦距</span><span class="readout-value" id="focalValue">12 mm</span></div>
+        <div class="readout"><span class="readout-label">视线高度</span><span class="readout-value" id="eyeValue">0.96 m</span></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" id="btnFocus" type="button" title="把摄像机对准立方体（F）">聚焦立方体<kbd>F</kbd></button>
+        <button class="btn" id="btnResetView" type="button" title="回到初始视角">重置视角</button>
+      </div>
+    </section>
+  </aside>
+
+  <footer class="hintbar" id="hintbar">
+    <span class="hint"><b>左键拖动</b>平移视角</span>
+    <span class="hint-sep"></span>
+    <span class="hint"><b>拖动箭头 / 圆环</b>操作立方体</span>
+    <span class="hint-sep"></span>
+    <span class="hint"><b>L</b>全局 / 本地坐标系</span>
+    <span class="hint-sep"></span>
+    <span class="hint"><b>右键拖动</b>旋转视角</span>
+    <span class="hint-sep"></span>
+    <span class="hint"><b>滚轮</b>缩放</span>
+    <span class="hint-sep"></span>
+    <span class="hint"><b>W A S D / Q E</b>自由移动</span>
+  </footer>
+
+  <button class="panel-tab panel-tab-left" id="tabLeft" type="button" title="展开左侧面板" aria-label="展开左侧面板">
+    <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+  <button class="panel-tab panel-tab-right" id="tabRight" type="button" title="展开右侧面板" aria-label="展开右侧面板">
+    <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M10 3 5 8l5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+
+  <button class="panel-toggle" id="panelToggle" type="button" aria-label="显示或隐藏控制面板" aria-expanded="false">
+    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path d="M3 6h14M3 10h14M3 14h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      <circle cx="7" cy="6" r="2" fill="currentColor"/>
+      <circle cx="13" cy="10" r="2" fill="currentColor"/>
+      <circle cx="9" cy="14" r="2" fill="currentColor"/>
+    </svg>
+  </button>
+</div>
+
+<script>
+/* ---- core.js ---- */
+/* ============================================================
+   透视实验室 · Perspective Lab
+   core.js — 数学 / 四元数 / 摄像机 / 透视投影 / 屏幕裁剪
+   DOM-free：可在 Node 中直接测试。
+   ============================================================ */
+(function (global) {
+  'use strict';
+
+  var DEG = Math.PI / 180;
+  var TAU = Math.PI * 2;
+
+  function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
+  function lerp(a, b, t) { return a + (b - a) * t; }
+  function easeInOut(t) {
+    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  }
+  function damp(rate, dt) { return 1 - Math.exp(-rate * dt); }
+  function smoothstep(e0, e1, x) {
+    var t = clamp((x - e0) / (e1 - e0), 0, 1);
+    return t * t * (3 - 2 * t);
+  }
+
+  /* ============================ vec3 ============================ */
+  function v3(x, y, z) { return [x || 0, y || 0, z || 0]; }
+  function vAdd(a, b) { return [a[0] + b[0], a[1] + b[1], a[2] + b[2]]; }
+  function vSub(a, b) { return [a[0] - b[0], a[1] - b[1], a[2] - b[2]]; }
+  function vScale(a, s) { return [a[0] * s, a[1] * s, a[2] * s]; }
+  function vDot(a, b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }
+  function vCross(a, b) {
+    return [
+      a[1] * b[2] - a[2] * b[1],
+      a[2] * b[0] - a[0] * b[2],
+      a[0] * b[1] - a[1] * b[0]
+    ];
+  }
+  function vLen(a) { return Math.sqrt(a[0] * a[0] + a[1] * a[1] + a[2] * a[2]); }
+  function vNorm(a) {
+    var l = vLen(a);
+    return l > 1e-12 ? [a[0] / l, a[1] / l, a[2] / l] : [0, 0, 0];
+  }
+  function vLerp(a, b, t) {
+    return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+  }
+  function vDist(a, b) { return vLen(vSub(a, b)); }
+  function vCopy(a) { return [a[0], a[1], a[2]]; }
+
+  /* ============================ quaternion [x,y,z,w] ============================ */
+  function qIdentity() { return [0, 0, 0, 1]; }
+  function qFromAxisAngle(axis, angle) {
+    var a = vNorm(axis), s = Math.sin(angle * 0.5);
+    return [a[0] * s, a[1] * s, a[2] * s, Math.cos(angle * 0.5)];
+  }
+  function qMul(a, b) {
+    var ax = a[0], ay = a[1], az = a[2], aw = a[3];
+    var bx = b[0], by = b[1], bz = b[2], bw = b[3];
+    return [
+      aw * bx + ax * bw + ay * bz - az * by,
+      aw * by - ax * bz + ay * bw + az * bx,
+      aw * bz + ax * by - ay * bx + az * bw,
+      aw * bw - ax * bx - ay * by - az * bz
+    ];
+  }
+  function qNormalize(q) {
+    var l = Math.sqrt(q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3]) || 1;
+    return [q[0] / l, q[1] / l, q[2] / l, q[3] / l];
+  }
+  function qRotate(q, v) {
+    var x = q[0], y = q[1], z = q[2], w = q[3];
+    var vx = v[0], vy = v[1], vz = v[2];
+    var tx = 2 * (y * vz - z * vy);
+    var ty = 2 * (z * vx - x * vz);
+    var tz = 2 * (x * vy - y * vx);
+    return [
+      vx + w * tx + (y * tz - z * ty),
+      vy + w * ty + (z * tx - x * tz),
+      vz + w * tz + (x * ty - y * tx)
+    ];
+  }
+  function qSlerp(a, b, t) {
+    var d = a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3];
+    var bb = b.slice();
+    if (d < 0) { d = -d; bb = [-b[0], -b[1], -b[2], -b[3]]; }
+    if (d > 0.9995) {
+      return qNormalize([
+        lerp(a[0], bb[0], t), lerp(a[1], bb[1], t),
+        lerp(a[2], bb[2], t), lerp(a[3], bb[3], t)
+      ]);
+    }
+    var theta = Math.acos(clamp(d, -1, 1));
+    var s = Math.sin(theta);
+    var wa = Math.sin((1 - t) * theta) / s;
+    var wb = Math.sin(t * theta) / s;
+    return qNormalize([
+      a[0] * wa + bb[0] * wb,
+      a[1] * wa + bb[1] * wb,
+      a[2] * wa + bb[2] * wb,
+      a[3] * wa + bb[3] * wb
+    ]);
+  }
+  /* Euler XYZ（与 three.js 约定一致），返回角度制 [x,y,z] */
+  function qToEuler(q) {
+    var x = q[0], y = q[1], z = q[2], w = q[3];
+    var m00 = 1 - 2 * (y * y + z * z);
+    var m01 = 2 * (x * y - z * w);
+    var m02 = 2 * (x * z + y * w);
+    var m12 = 2 * (y * z - x * w);
+    var m22 = 1 - 2 * (x * x + y * y);
+    var m11 = 1 - 2 * (x * x + z * z);
+    var m21 = 2 * (x * y + z * w);
+    var ey = Math.asin(clamp(m02, -1, 1));
+    var ex, ez;
+    if (Math.abs(m02) < 0.9999999) {
+      ex = Math.atan2(-m12, m22);
+      ez = Math.atan2(-m01, m00);
+    } else {
+      ex = Math.atan2(m21, m11);
+      ez = 0;
+    }
+    return [ex / DEG, ey / DEG, ez / DEG];
+  }
+
+  /* ============================ camera frame ============================ */
+  /**
+   * 摄像机参数：
+   *   target   [x,y,z] 观察目标
+   *   yaw      绕世界 Y 的方位角（0 = 摄像机位于目标 +Z 方向）
+   *   pitch    俯仰角（>0 表示摄像机高于目标、向下看）
+   *   distance 摄像机到目标距离
+   *   fov      垂直视场角（弧度）
+   */
+  function makeCamera(opts) {
+    opts = opts || {};
+    return {
+      target: opts.target ? vCopy(opts.target) : [0, 0.9, 0],
+      yaw: opts.yaw || 0,
+      pitch: opts.pitch || 0,
+      distance: opts.distance || 8,
+      fov: opts.fov || 45 * DEG
+    };
+  }
+
+  function makeFrame(cam, width, height) {
+    var yaw = cam.yaw, pitch = cam.pitch;
+    var cp = Math.cos(pitch), sp = Math.sin(pitch);
+    var toCam = [Math.sin(yaw) * cp, sp, Math.cos(yaw) * cp];
+    var distance = cam.distance;
+    var pos = [
+      cam.target[0] + toCam[0] * distance,
+      cam.target[1] + toCam[1] * distance,
+      cam.target[2] + toCam[2] * distance
+    ];
+    var forward = [-toCam[0], -toCam[1], -toCam[2]];
+    var right = vCross(forward, [0, 1, 0]);
+    if (vLen(right) < 1e-6) right = [1, 0, 0];
+    right = vNorm(right);
+    var up = vCross(right, forward);
+
+    var focal = (height * 0.5) / Math.tan(cam.fov * 0.5);
+    var cx = width * 0.5;
+    var cy = height * 0.5;
+    var near = 0.06;
+
+    function projectCam(cc) {
+      var invZ = 1 / cc[2];
+      return { x: cx + focal * cc[0] * invZ, y: cy - focal * cc[1] * invZ, depth: cc[2] };
+    }
+    function toCamSpace(p) {
+      var dx = p[0] - pos[0], dy = p[1] - pos[1], dz = p[2] - pos[2];
+      return [
+        right[0] * dx + right[1] * dy + right[2] * dz,
+        up[0] * dx + up[1] * dy + up[2] * dz,
+        forward[0] * dx + forward[1] * dy + forward[2] * dz
+      ];
+    }
+    function dirToCam(d) {
+      return [
+        right[0] * d[0] + right[1] * d[1] + right[2] * d[2],
+        up[0] * d[0] + up[1] * d[1] + up[2] * d[2],
+        forward[0] * d[0] + forward[1] * d[1] + forward[2] * d[2]
+      ];
+    }
+
+    var frame = {
+      width: width,
+      height: height,
+      cx: cx,
+      cy: cy,
+      focal: focal,
+      near: near,
+      pos: pos,
+      target: vCopy(cam.target),
+      forward: forward,
+      right: right,
+      up: up,
+      fov: cam.fov,
+      distance: distance,
+      yaw: yaw,
+      pitch: pitch,
+      toCamSpace: toCamSpace,
+      dirToCam: dirToCam,
+      projectCam: projectCam,
+
+      project: function (p) {
+        var cc = toCamSpace(p);
+        if (cc[2] <= near) return null;
+        return projectCam(cc);
+      },
+
+      /* 方向 d 的消失点（齐次投影）。infinite=true 表示方向平行于画面。 */
+      projectDir: function (d) {
+        var cc = dirToCam(d);
+        if (Math.abs(cc[2]) < 1e-6) {
+          return { x: NaN, y: NaN, infinite: true, camZ: cc[2], camX: cc[0], camY: cc[1] };
+        }
+        return {
+          x: cx + focal * cc[0] / cc[2],
+          y: cy - focal * cc[1] / cc[2],
+          infinite: false,
+          camZ: cc[2],
+          camX: cc[0],
+          camY: cc[1]
+        };
+      },
+
+      /* 世界线段 → 屏幕线段（对近裁剪面裁剪） */
+      projectSegment: function (a, b) {
+        var ca = toCamSpace(a), cb = toCamSpace(b);
+        if (ca[2] <= near && cb[2] <= near) return null;
+        if (ca[2] <= near) {
+          var t1 = (near - ca[2]) / (cb[2] - ca[2]);
+          ca = [ca[0] + (cb[0] - ca[0]) * t1, ca[1] + (cb[1] - ca[1]) * t1, near];
+        } else if (cb[2] <= near) {
+          var t2 = (near - cb[2]) / (ca[2] - cb[2]);
+          cb = [cb[0] + (ca[0] - cb[0]) * t2, cb[1] + (ca[1] - cb[1]) * t2, near];
+        }
+        return [projectCam(ca), projectCam(cb)];
+      },
+
+      /* 地平面消失线（地平线）。摄像机水平时经过画面中心。 */
+      horizon: function () {
+        var n = [0, 1, 0];
+        var nc = dirToCam(n);
+        if (Math.abs(nc[1]) < 1e-4) return null;
+        function yAt(x) {
+          var X = x - cx;
+          var Y = -(nc[0] * X + nc[2] * focal) / nc[1];
+          return cy - Y;
+        }
+        return [{ x: 0, y: yAt(0) }, { x: width, y: yAt(width) }];
+      },
+
+      /* 屏幕点 → 世界射线 {origin, dir} */
+      unproject: function (sx, sy) {
+        var a = (sx - cx) / focal;
+        var b = -(sy - cy) / focal;
+        var d = [
+          right[0] * a + up[0] * b + forward[0],
+          right[1] * a + up[1] * b + forward[1],
+          right[2] * a + up[2] * b + forward[2]
+        ];
+        return { origin: pos, dir: vNorm(d) };
+      }
+    };
+    return frame;
+  }
+
+  /* ============================ geometry helpers ============================ */
+  function distPointSegment(px, py, ax, ay, bx, by) {
+    var dx = bx - ax, dy = by - ay;
+    var l2 = dx * dx + dy * dy;
+    if (l2 < 1e-9) return Math.hypot(px - ax, py - ay);
+    var t = clamp(((px - ax) * dx + (py - ay) * dy) / l2, 0, 1);
+    return Math.hypot(px - (ax + dx * t), py - (ay + dy * t));
+  }
+
+  function pointInPolygon(px, py, pts) {
+    var inside = false;
+    for (var i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+      var xi = pts[i][0], yi = pts[i][1], xj = pts[j][0], yj = pts[j][1];
+      if (((yi > py) !== (yj > py)) && (px < (xj - xi) * (py - yi) / (yj - yi) + xi)) inside = !inside;
+    }
+    return inside;
+  }
+
+  /* Liang–Barsky 裁剪 */
+  function clipSegmentRect(p0, p1, xmin, ymin, xmax, ymax) {
+    var t0 = 0, t1 = 1;
+    var dx = p1[0] - p0[0], dy = p1[1] - p0[1];
+    var p = [-dx, dx, -dy, dy];
+    var q = [p0[0] - xmin, xmax - p0[0], p0[1] - ymin, ymax - p0[1]];
+    for (var i = 0; i < 4; i++) {
+      if (p[i] === 0) {
+        if (q[i] < 0) return null;
+      } else {
+        var r = q[i] / p[i];
+        if (p[i] < 0) {
+          if (r > t1) return null;
+          if (r > t0) t0 = r;
+        } else {
+          if (r < t0) return null;
+          if (r < t1) t1 = r;
+        }
+      }
+    }
+    return [
+      [p0[0] + dx * t0, p0[1] + dy * t0],
+      [p0[0] + dx * t1, p0[1] + dy * t1]
+    ];
+  }
+
+  /* 射线与直线最近点：返回直线参数 t（P = lineA + t·lineDir） */
+  function rayLineParam(rayO, rayD, lineA, lineDir) {
+    var u = vNorm(lineDir), v = rayD;
+    var w0 = vSub(lineA, rayO);
+    var a = vDot(u, u), b = vDot(u, v), c = vDot(v, v);
+    var d = vDot(u, w0), e = vDot(v, w0);
+    var den = a * c - b * b;
+    if (Math.abs(den) < 1e-7) return null;
+    return (b * e - c * d) / den;
+  }
+
+  /* 射线与平面求交 */
+  function rayPlane(rayO, rayD, planeNormal, planePoint) {
+    var den = vDot(planeNormal, rayD);
+    if (Math.abs(den) < 1e-7) return null;
+    var t = vDot(planeNormal, vSub(planePoint, rayO)) / den;
+    return vAdd(rayO, vScale(rayD, t));
+  }
+
+  function perpendicular(v) {
+    var ax = Math.abs(v[0]), ay = Math.abs(v[1]), az = Math.abs(v[2]);
+    var axis = ax < ay ? (ax < az ? [1, 0, 0] : [0, 0, 1]) : (ay < az ? [0, 1, 0] : [0, 0, 1]);
+    return vNorm(vCross(v, axis));
+  }
+
+  var PL = {
+    DEG: DEG,
+    TAU: TAU,
+    clamp: clamp,
+    lerp: lerp,
+    easeInOut: easeInOut,
+    damp: damp,
+    smoothstep: smoothstep,
+
+    v3: v3, vAdd: vAdd, vSub: vSub, vScale: vScale, vDot: vDot, vCross: vCross,
+    vLen: vLen, vNorm: vNorm, vLerp: vLerp, vDist: vDist, vCopy: vCopy,
+
+    qIdentity: qIdentity, qFromAxisAngle: qFromAxisAngle, qMul: qMul,
+    qNormalize: qNormalize, qRotate: qRotate, qSlerp: qSlerp, qToEuler: qToEuler,
+
+    makeCamera: makeCamera,
+    makeFrame: makeFrame,
+
+    distPointSegment: distPointSegment,
+    pointInPolygon: pointInPolygon,
+    clipSegmentRect: clipSegmentRect,
+    rayLineParam: rayLineParam,
+    rayPlane: rayPlane,
+    perpendicular: perpendicular
+  };
+
+  if (typeof module !== 'undefined' && module.exports) module.exports = PL;
+  global.PL = PL;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+/* ---- scene.js ---- */
+/* ============================================================
+   透视实验室 · Perspective Lab
+   scene.js — 立方体模型、消失点 / 消失线推导、变换手柄
+   ============================================================ */
+(function (global) {
+  'use strict';
+
+  var PL = global.PL;
+  var vAdd = PL.vAdd, vSub = PL.vSub, vScale = PL.vScale, vDot = PL.vDot;
+  var vCross = PL.vCross, vNorm = PL.vNorm, vLen = PL.vLen;
+  var qRotate = PL.qRotate;
+
+  /* 轴的最小“透视有效性”：方向与画面夹角过小则视为消失于无穷远 */
+  var INFINITE_COS = 0.105;
+
+  /* ------------------------------------------------------------------
+   * 立方体静态模型
+   * ------------------------------------------------------------------ */
+  function buildCube(half) {
+    var h = half;
+    var verts = [
+      [-h, -h, -h], [h, -h, -h], [h, h, -h], [-h, h, -h],
+      [-h, -h, h], [h, -h, h], [h, h, h], [-h, h, h]
+    ];
+    var faces = [
+      { idx: [0, 3, 2, 1], normal: [0, 0, -1], axis: 2, sign: -1 }, // 后
+      { idx: [4, 5, 6, 7], normal: [0, 0, 1], axis: 2, sign: 1 },   // 前
+      { idx: [0, 4, 7, 3], normal: [-1, 0, 0], axis: 0, sign: -1 }, // 左
+      { idx: [1, 2, 6, 5], normal: [1, 0, 0], axis: 0, sign: 1 },   // 右
+      { idx: [0, 1, 5, 4], normal: [0, -1, 0], axis: 1, sign: -1 }, // 下
+      { idx: [3, 7, 6, 2], normal: [0, 1, 0], axis: 1, sign: 1 }    // 上
+    ];
+    var edges = [];
+    for (var i = 0; i < 8; i++) {
+      for (var j = i + 1; j < 8; j++) {
+        var a = verts[i], b = verts[j];
+        var diff = 0, axis = -1;
+        for (var k = 0; k < 3; k++) {
+          if (Math.abs(a[k] - b[k]) > 1e-9) { diff++; axis = k; }
+        }
+        if (diff !== 1) continue;
+        var adj = [];
+        for (var f = 0; f < faces.length; f++) {
+          var n = faces[f].normal;
+          if (Math.abs(vDot(n, a) - h) < 1e-9 && Math.abs(vDot(n, b) - h) < 1e-9) adj.push(f);
+        }
+        edges.push({ a: i, b: j, axis: axis, faces: adj });
+      }
+    }
+    return { half: half, verts: verts, faces: faces, edges: edges };
+  }
+
+  function getAxes(quat) {
+    return [
+      qRotate(quat, [1, 0, 0]),
+      qRotate(quat, [0, 1, 0]),
+      qRotate(quat, [0, 0, 1])
+    ];
+  }
+
+  /* 世界空间立方体 + 可见性 */
+  function cubeWorld(model, position, quat) {
+    var points = [];
+    for (var i = 0; i < model.verts.length; i++) {
+      points.push(vAdd(qRotate(quat, model.verts[i]), position));
+    }
+    var faces = [];
+    for (var f = 0; f < model.faces.length; f++) {
+      var mf = model.faces[f];
+      var center = [0, 0, 0];
+      for (var k = 0; k < 4; k++) {
+        var p = points[mf.idx[k]];
+        center[0] += p[0] * 0.25; center[1] += p[1] * 0.25; center[2] += p[2] * 0.25;
+      }
+      faces.push({
+        idx: mf.idx,
+        normal: mf.normal,
+        axis: mf.axis,
+        sign: mf.sign,
+        normalWorld: qRotate(quat, mf.normal),
+        center: center,
+        visible: false,
+        depth: 0
+      });
+    }
+    var edges = [];
+    for (var e = 0; e < model.edges.length; e++) {
+      var me = model.edges[e];
+      edges.push({
+        a: me.a,
+        b: me.b,
+        axis: me.axis,
+        faces: me.faces,
+        visible: false
+      });
+    }
+    return { points: points, faces: faces, edges: edges, position: position, quat: quat, half: model.half };
+  }
+
+  function updateVisibility(world, camPos, frame) {
+    var i;
+    for (i = 0; i < world.faces.length; i++) {
+      var face = world.faces[i];
+      face.visible = vDot(face.normalWorld, vSub(camPos, face.center)) > 1e-6;
+      if (frame) {
+        var d = 0;
+        for (var k = 0; k < 4; k++) {
+          d += frame.toCamSpace(world.points[face.idx[k]])[2];
+        }
+        face.depth = d * 0.25;
+      }
+    }
+    for (i = 0; i < world.edges.length; i++) {
+      var edge = world.edges[i];
+      edge.visible = false;
+      for (var f = 0; f < edge.faces.length; f++) {
+        if (world.faces[edge.faces[f]].visible) { edge.visible = true; break; }
+      }
+    }
+  }
+
+  /* ------------------------------------------------------------------
+   * 消失点：立方体三个轴向在屏幕上的投影
+   * ------------------------------------------------------------------ */
+  function computeVPs(frame, quat) {
+    var axes = getAxes(quat);
+    var list = [];
+    var finiteCount = 0;
+    for (var i = 0; i < 3; i++) {
+      var d = axes[i];
+      var proj = frame.projectDir(d);
+      var absZ = Math.abs(proj.camZ);
+      var infinite = absZ < INFINITE_COS;
+      var dist = infinite ? Infinity : Math.hypot(proj.x - frame.cx, proj.y - frame.cy);
+      var onScreen = !infinite && proj.x > -50 && proj.x < frame.width + 50 &&
+                     proj.y > -50 && proj.y < frame.height + 50;
+      if (!infinite) finiteCount++;
+      list.push({
+        axis: i,
+        dir: d,
+        x: infinite ? NaN : proj.x,
+        y: infinite ? NaN : proj.y,
+        infinite: infinite,
+        absZ: absZ,
+        dist: dist,
+        onScreen: onScreen,
+        /* 消失点位于摄像机前方(= 该轴朝远离视线方向延伸)？仅用于文案 */
+        receding: proj.camZ < 0
+      });
+    }
+    return {
+      axes: list,
+      finiteCount: finiteCount,
+      type: finiteCount === 1 ? 'one' : finiteCount === 2 ? 'two' : finiteCount === 3 ? 'three' : 'free'
+    };
+  }
+
+  /* ------------------------------------------------------------------
+   * 消失线：从每条棱的远端延伸到对应消失点
+   * ------------------------------------------------------------------ */
+  function vanishingLines(frame, world, vps, opts) {
+    opts = opts || {};
+    var margin = 90;
+    var rect = opts.safeRect;
+    var xmin = rect ? rect.left + 2 : -margin;
+    var ymin = rect ? rect.top + 2 : -margin;
+    var xmax = rect ? rect.right - 2 : frame.width + margin;
+    var ymax = rect ? rect.bottom - 2 : frame.height + margin;
+    var out = [];
+    for (var a = 0; a < 3; a++) {
+      var vp = vps.axes[a];
+      if (vp.infinite) continue;
+      for (var e = 0; e < world.edges.length; e++) {
+        var edge = world.edges[e];
+        if (edge.axis !== a) continue;
+        if (!edge.visible && !opts.showHidden) continue;
+
+        var pa = frame.project(world.points[edge.a]);
+        var pb = frame.project(world.points[edge.b]);
+        if (!pa || !pb) continue;
+
+        var da = Math.hypot(pa.x - vp.x, pa.y - vp.y);
+        var db = Math.hypot(pb.x - vp.x, pb.y - vp.y);
+        if (!isFinite(da) || !isFinite(db)) continue;
+
+        var start = da >= db ? pa : pb;
+        var clipped = PL.clipSegmentRect(
+          [start.x, start.y], [vp.x, vp.y],
+          xmin, ymin, xmax, ymax
+        );
+        if (!clipped) continue;
+        var len = Math.hypot(clipped[1][0] - clipped[0][0], clipped[1][1] - clipped[0][1]);
+        if (len < 7) continue;
+
+        out.push({
+          axis: a,
+          x0: clipped[0][0],
+          y0: clipped[0][1],
+          x1: clipped[1][0],
+          y1: clipped[1][1],
+          visible: edge.visible,
+          edge: e
+        });
+      }
+    }
+    return out;
+  }
+
+  /* ------------------------------------------------------------------
+   * 变换手柄（世界轴）：移动箭头 / 旋转圆环
+   * ------------------------------------------------------------------ */
+  function buildGizmo(frame, center, half, mode, axes) {
+    var ax = axes || [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+    var handles = [];
+    var length = half * 1.5;
+    var radius = half * 1.34;
+
+    if (mode === 'move') {
+      var o = frame.project(center);
+      if (!o) return handles;
+      for (var i = 0; i < 3; i++) {
+        var tip = vAdd(center, vScale(ax[i], length));
+        var p = frame.project(tip);
+        if (!p) continue;
+        var screenLen = Math.hypot(p.x - o.x, p.y - o.y);
+        if (screenLen < 9) {
+          /* 该轴几乎正对镜头：退化为中心的“深度环” */
+          handles.push({
+            mode: 'move', axis: i, degenerate: true,
+            ox: o.x, oy: o.y, tx: o.x, ty: o.y, length: 0,
+            axisDir: ax[i].slice()
+          });
+        } else {
+          handles.push({
+            mode: 'move', axis: i,
+            ox: o.x, oy: o.y, tx: p.x, ty: p.y,
+            length: screenLen,
+            axisDir: ax[i].slice()
+          });
+        }
+      }
+
+      /* 平面二维移动手柄（XY / YZ / ZX 三个象限方块） */
+      var pairs = [[0, 1, 2], [1, 2, 0], [2, 0, 1]];
+      var quad = [[0.30, 0.30], [0.58, 0.30], [0.58, 0.58], [0.30, 0.58]];
+      for (var pi = 0; pi < pairs.length; pi++) {
+        var pa = pairs[pi][0], pb = pairs[pi][1], pn = pairs[pi][2];
+        var quadPts = [];
+        var quadOk = true;
+        for (var qi = 0; qi < quad.length; qi++) {
+          var wp = vAdd(center, vAdd(
+            vScale(ax[pa], quad[qi][0] * length),
+            vScale(ax[pb], quad[qi][1] * length)
+          ));
+          var sp = frame.project(wp);
+          if (!sp) { quadOk = false; break; }
+          quadPts.push({ x: sp.x, y: sp.y });
+        }
+        if (!quadOk) continue;
+        handles.push({
+          mode: 'move-plane', axis: pn, plane: [pa, pb], normalAxis: pn,
+          u: ax[pa].slice(), v: ax[pb].slice(), n: ax[pn].slice(),
+          points: quadPts, label: 'XYZ'[pa] + 'XYZ'[pb]
+        });
+      }
+    } else {
+      var cenDepth = frame.toCamSpace(center)[2];
+      var oc = frame.project(center);
+      var ringScreenMax = 0;
+      for (var j = 0; j < 3; j++) {
+        var u = PL.perpendicular(ax[j]);
+        var w = vCross(ax[j], u);
+        var pts = [];
+        var N = 64;
+        for (var k = 0; k <= N; k++) {
+          var t = k / N * PL.TAU;
+          var p3 = [
+            center[0] + (u[0] * Math.cos(t) + w[0] * Math.sin(t)) * radius,
+            center[1] + (u[1] * Math.cos(t) + w[1] * Math.sin(t)) * radius,
+            center[2] + (u[2] * Math.cos(t) + w[2] * Math.sin(t)) * radius
+          ];
+          var pp = frame.project(p3);
+          pts.push(pp ? { x: pp.x, y: pp.y, depth: pp.depth } : null);
+          if (pp && oc) {
+            ringScreenMax = Math.max(ringScreenMax, Math.hypot(pp.x - oc.x, pp.y - oc.y));
+          }
+        }
+        handles.push({
+          mode: 'rotate', axis: j,
+          points: pts, radius: radius, centerDepth: cenDepth,
+          axisDir: ax[j].slice()
+        });
+      }
+
+      /* 最外层白色自由旋转外环：绕摄像机 right / up 两个轴旋转 */
+      if (oc) {
+        var screenR = ringScreenMax > 0 ? ringScreenMax + 10 : 70;
+        handles.push({
+          mode: 'rotate-view', axis: -1,
+          ox: oc.x, oy: oc.y, radius: screenR
+        });
+      }
+    }
+    return handles;
+  }
+
+  function hitTestGizmo(mx, my, handles) {
+    var i;
+    /* 优先命中屏幕退化的“深度环” */
+    for (i = 0; i < handles.length; i++) {
+      var hd = handles[i];
+      if (hd.mode === 'move' && hd.degenerate) {
+        if (Math.hypot(mx - hd.ox, my - hd.oy) < 13) return hd;
+      }
+    }
+    /* 平面移动方块 */
+    for (i = 0; i < handles.length; i++) {
+      var hp = handles[i];
+      if (hp.mode === 'move-plane' && PL.pointInPolygon(mx, my, hp.points.map(function (p) {
+        return [p.x, p.y];
+      }))) return hp;
+    }
+    /* 最外层白色自由旋转环：命中环带 */
+    for (i = 0; i < handles.length; i++) {
+      var hv = handles[i];
+      if (hv.mode === 'rotate-view') {
+        var hvDist = Math.hypot(mx - hv.ox, my - hv.oy);
+        if (Math.abs(hvDist - hv.radius) < 11) return hv;
+      }
+    }
+    var best = null, bestDist = 11;
+    for (var h = 0; h < handles.length; h++) {
+      var handle = handles[h];
+      if (handle.degenerate || handle.mode === 'move-plane' || handle.mode === 'rotate-view') continue;
+      if (handle.mode === 'move') {
+        var d = PL.distPointSegment(mx, my, handle.ox, handle.oy, handle.tx, handle.ty);
+        if (d < bestDist) { bestDist = d; best = handle; }
+      } else if (handle.mode === 'rotate') {
+        var pts = handle.points;
+        for (i = 0; i < pts.length - 1; i++) {
+          var p0 = pts[i], p1 = pts[i + 1];
+          if (!p0 || !p1) continue;
+          var dd = PL.distPointSegment(mx, my, p0.x, p0.y, p1.x, p1.y);
+          if (dd < bestDist) { bestDist = dd; best = handle; }
+        }
+      }
+    }
+    return best;
+  }
+
+  function hitTestCube(mx, my, frame, world) {
+    for (var i = 0; i < world.faces.length; i++) {
+      var face = world.faces[i];
+      if (!face.visible) continue;
+      var poly = [];
+      var ok = true;
+      for (var k = 0; k < 4; k++) {
+        var p = frame.project(world.points[face.idx[k]]);
+        if (!p) { ok = false; break; }
+        poly.push([p.x, p.y]);
+      }
+      if (ok && PL.pointInPolygon(mx, my, poly)) return true;
+    }
+    return false;
+  }
+
+  global.PLScene = {
+    INFINITE_COS: INFINITE_COS,
+    buildCube: buildCube,
+    getAxes: getAxes,
+    cubeWorld: cubeWorld,
+    updateVisibility: updateVisibility,
+    computeVPs: computeVPs,
+    vanishingLines: vanishingLines,
+    buildGizmo: buildGizmo,
+    hitTestGizmo: hitTestGizmo,
+    hitTestCube: hitTestCube
+  };
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+/* ---- render.js ---- */
+/* ============================================================
+   透视实验室 · Perspective Lab
+   render.js — Canvas 2D 矢量渲染：氛围 / 网格 / 地平线 / 消失线 /
+               玻璃立方体 / 消失点 / 变换手柄 / 标注
+   ============================================================ */
+(function (global) {
+  'use strict';
+
+  var PL = global.PL;
+
+  var AXIS_HEX = ['#d6456a', '#0a8574', '#3d6fe8'];
+  var AXIS_RGB = [[214, 69, 106], [10, 133, 116], [61, 111, 232]];
+  var FONT = '"Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif';
+  var FONT_MONO = '"Cascadia Code", "JetBrains Mono", "SF Mono", Consolas, monospace';
+
+  function rgba(rgb, a) {
+    return 'rgba(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ',' + (a < 0 ? 0 : a > 1 ? 1 : a).toFixed(3) + ')';
+  }
+  function mixWhite(rgb, t) {
+    return [
+      Math.round(rgb[0] + (255 - rgb[0]) * t),
+      Math.round(rgb[1] + (255 - rgb[1]) * t),
+      Math.round(rgb[2] + (255 - rgb[2]) * t)
+    ];
+  }
+  function roundRect(ctx, x, y, w, h, r) {
+    r = Math.min(r, w * 0.5, h * 0.5);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+  function fmtDist(n) {
+    if (!isFinite(n)) return '∞';
+    if (n >= 10000) return (n / 1000).toFixed(1) + 'k';
+    return String(Math.round(n));
+  }
+
+  function Renderer(canvas) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d', { alpha: true });
+    this.w = 1;
+    this.h = 1;
+    this.dpr = 1;
+    this.safe = { left: 40, right: 1200, top: 100, bottom: 800 };
+    this.resize();
+  }
+
+  Renderer.prototype.resize = function () {
+    var dpr = Math.min(global.devicePixelRatio || 1, 2);
+    var w = global.innerWidth;
+    var h = global.innerHeight;
+    if (w === this.w && h === this.h && dpr === this.dpr) return;
+    this.w = w;
+    this.h = h;
+    this.dpr = dpr;
+    this.canvas.width = Math.round(w * dpr);
+    this.canvas.height = Math.round(h * dpr);
+    this.canvas.style.width = w + 'px';
+    this.canvas.style.height = h + 'px';
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  };
+
+  Renderer.prototype.clear = function () {
+    this.ctx.clearRect(0, 0, this.w, this.h);
+  };
+
+  /* ============================ 场景主绘制 ============================ */
+  Renderer.prototype.draw = function (scene, time, safe) {
+    this.clear();
+    this.safe = safe || this.safe;
+    this.lastScene = scene;
+    this.lastStats = { lineSets: 0, vpMarkers: 0 };
+    var frame = scene.frame;
+    var worlds = scene.worlds || [scene.world];
+    var i;
+
+    this.drawAtmosphere(frame, scene);
+    if (scene.show.grid) this.drawGrid(frame, scene);
+    if (scene.show.horizon && scene.horizon) this.drawHorizon(scene.horizon, scene.show.labels);
+
+    var views = scene.cubeViews || [{ lines: scene.lines, selected: true }];
+    for (i = 0; i < views.length; i++) this.drawShadow(frame, views[i].world || scene.world);
+
+    if (scene.show.lines) {
+      var vi;
+      if (scene.show.otherLines) {
+        for (vi = 0; vi < views.length; vi++) {
+          if (views[vi].selected !== false) continue;
+          this.drawVanishingLines(views[vi].lines, -1, this.safe, 0.6);
+          this.lastStats.lineSets++;
+        }
+      }
+      for (vi = 0; vi < views.length; vi++) {
+        if (!views[vi].selected) continue;
+        this.drawVanishingLines(views[vi].lines, scene.highlightAxis, this.safe, 1);
+        this.lastStats.lineSets++;
+      }
+    }
+
+    var sorted = worlds.slice().sort(function (a, b) {
+      return frame.toCamSpace(b.position)[2] - frame.toCamSpace(a.position)[2];
+    });
+    for (i = 0; i < sorted.length; i++) {
+      this.drawCube(frame, sorted[i], time, sorted[i].selected, scene.show.hidden, scene.show.opaque);
+    }
+    if (worlds.length > 1) this.drawCubeBadges(scene);
+    if (scene.show.points) this.lastStats.vpMarkers = this.drawVanishingPoints(scene, time);
+    this.drawGizmo(scene);
+    if (scene.dragInfo) this.drawDragInfo(scene.dragInfo);
+  };
+
+  /* ============================ 氛围光 ============================ */
+  Renderer.prototype.drawAtmosphere = function (frame, scene) {
+    var ctx = this.ctx;
+    /* 地面光晕（局部绘制，避免全屏渐变开销） */
+    var ground = frame.project([scene.world.position[0], 0.002, scene.world.position[2]]);
+    if (!ground) return;
+    var r = Math.min(frame.focal * 2.4 / Math.max(ground.depth, 0.3), Math.max(this.w, this.h) * 0.8);
+    var squash = PL.clamp(Math.sin(frame.pitch) + 0.18, 0.18, 1);
+    ctx.save();
+    ctx.translate(ground.x, ground.y);
+    ctx.scale(1, squash);
+    var fg = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+    fg.addColorStop(0, 'rgba(96,156,232,0.10)');
+    fg.addColorStop(0.5, 'rgba(96,156,232,0.04)');
+    fg.addColorStop(1, 'rgba(96,156,232,0)');
+    ctx.fillStyle = fg;
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, PL.TAU);
+    ctx.fill();
+    ctx.restore();
+  };
+
+  /* ============================ 地面网格 ============================ */
+  Renderer.prototype.drawGrid = function (frame, scene) {
+    var ctx = this.ctx;
+    var w = this.w, h = this.h;
+    var center = scene.gridCenter;
+    var R = 20;
+    ctx.save();
+    ctx.lineCap = 'round';
+
+    function paint(a, b, alpha, width) {
+      if (alpha < 0.006) return;
+      var seg = frame.projectSegment(a, b);
+      if (!seg) return;
+      var clip = PL.clipSegmentRect([seg[0].x, seg[0].y], [seg[1].x, seg[1].y], -80, -80, w + 80, h + 80);
+      if (!clip) return;
+      ctx.strokeStyle = 'rgba(64,98,158,' + alpha.toFixed(3) + ')';
+      ctx.lineWidth = width;
+      ctx.beginPath();
+      ctx.moveTo(clip[0][0], clip[0][1]);
+      ctx.lineTo(clip[1][0], clip[1][1]);
+      ctx.stroke();
+    }
+
+    for (var k = -R; k <= R; k++) {
+      var major = k % 5 === 0;
+      var fadeX = 1 - PL.smoothstep(8, R - 2, Math.abs(k - center[0]));
+      var fadeZ = 1 - PL.smoothstep(8, R - 2, Math.abs(k - center[2]));
+      var ax = (0.018 + 0.10 * fadeX) * (major ? 1.6 : 1);
+      var az = (0.017 + 0.093 * fadeZ) * (major ? 1.6 : 1);
+      paint([k, 0, -R], [k, 0, R], ax, major ? 1.25 : 1);
+      paint([-R, 0, k], [R, 0, k], az, major ? 1.25 : 1);
+    }
+
+    /* 世界轴在地面上的参考线 */
+    paint([-R, 0, 0], [R, 0, 0], 0.05, 1.1);
+    paint([0, 0, -R], [0, 0, R], 0.05, 1.1);
+    ctx.restore();
+  };
+
+  /* ============================ 地平线 ============================ */
+  Renderer.prototype.drawHorizon = function (horizon, showLabels) {
+    var ctx = this.ctx;
+    var safe = this.safe;
+    var p0 = horizon[0], p1 = horizon[1];
+
+    var clip = PL.clipSegmentRect([p0.x, p0.y], [p1.x, p1.y],
+      safe.left, safe.top, safe.right, safe.bottom);
+    if (!clip) return;
+
+    ctx.save();
+    ctx.setLineDash([2, 8]);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(58,82,126,0.32)';
+    ctx.beginPath();
+    ctx.moveTo(clip[0][0], clip[0][1]);
+    ctx.lineTo(clip[1][0], clip[1][1]);
+    ctx.stroke();
+    ctx.restore();
+
+    if (!showLabels) return;
+    var ly = p0.y + (p1.y - p0.y) * 0.5;
+    if (ly < safe.top + 18 || ly > safe.bottom - 8) return;
+    ctx.save();
+    ctx.font = '500 9px ' + FONT;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(80,98,132,0.6)';
+    ctx.fillText('地 平 线', safe.right - 10, ly - 22);
+    ctx.restore();
+  };
+
+  /* ============================ 消失线 ============================ */
+  Renderer.prototype.drawVanishingLines = function (lines, highlightAxis, safe, opacity) {
+    if (opacity === 0) return;
+    opacity = opacity === undefined ? 1 : opacity;
+    var ctx = this.ctx;
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.setLineDash([4, 6]);
+
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+      var rgb = AXIS_RGB[line.axis];
+      var hot = highlightAxis === line.axis;
+      var strength = (line.visible ? 1 : 0.62) * (hot ? 1.55 : 1) * opacity;
+      var grad = ctx.createLinearGradient(line.x0, line.y0, line.x1, line.y1);
+      grad.addColorStop(0, rgba(rgb, 0.88 * strength));
+      grad.addColorStop(0.35, rgba(rgb, 0.5 * strength));
+      grad.addColorStop(1, rgba(rgb, 0.1 * strength));
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = hot ? 2.1 : (opacity < 1 ? 1.1 : 1.45);
+      ctx.beginPath();
+      ctx.moveTo(line.x0, line.y0);
+      ctx.lineTo(line.x1, line.y1);
+      ctx.stroke();
+    }
+    ctx.restore();
+  };
+
+  /* ============================ 立方体阴影 ============================ */
+  Renderer.prototype.drawShadow = function (frame, world) {
+    var pos = world.position;
+    var ground = [pos[0], 0.002, pos[2]];
+    var p = frame.project(ground);
+    if (!p) return;
+    var vis = PL.smoothstep(0.02, 0.2, Math.abs(Math.sin(frame.pitch)));
+    if (vis < 0.01) return;
+    var ctx = this.ctx;
+    var squash = PL.clamp(Math.sin(frame.pitch) + 0.16, 0.16, 1);
+    var lift = PL.clamp(1.1 - (pos[1] - 0.9) * 0.26, 0.25, 1.15) * vis;
+    var r1 = frame.focal * (world.half || 0.9) * 2.0 / Math.max(p.depth, 0.3);
+    var r2 = frame.focal * (world.half || 0.9) * 1.05 / Math.max(p.depth, 0.3);
+
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.scale(1, squash);
+
+    var soft = ctx.createRadialGradient(0, 0, 0, 0, 0, r1);
+    soft.addColorStop(0, 'rgba(70,86,118,' + (0.06 * lift).toFixed(3) + ')');
+    soft.addColorStop(0.6, 'rgba(70,86,118,' + (0.024 * lift).toFixed(3) + ')');
+    soft.addColorStop(1, 'rgba(70,86,118,0)');
+    ctx.fillStyle = soft;
+    ctx.beginPath();
+    ctx.arc(0, 0, r1, 0, PL.TAU);
+    ctx.fill();
+
+    var contact = ctx.createRadialGradient(0, 0, 0, 0, 0, r2);
+    contact.addColorStop(0, 'rgba(62,78,108,' + (0.13 * lift).toFixed(3) + ')');
+    contact.addColorStop(0.7, 'rgba(62,78,108,' + (0.045 * lift).toFixed(3) + ')');
+    contact.addColorStop(1, 'rgba(62,78,108,0)');
+    ctx.fillStyle = contact;
+    ctx.beginPath();
+    ctx.arc(0, 0, r2, 0, PL.TAU);
+    ctx.fill();
+    ctx.restore();
+  };
+
+  /* ============================ 立方体 ============================ */
+  Renderer.prototype.drawCube = function (frame, world, time, selected, showHidden, opaque) {
+    var ctx = this.ctx;
+    var faces = world.faces.slice().sort(function (a, b) { return b.depth - a.depth; });
+    var light = PL.vNorm([-0.38, 0.88, 0.5]);
+
+    var i, k;
+    for (i = 0; i < faces.length; i++) {
+      var face = faces[i];
+      if (opaque && !face.visible) continue;
+      var poly = [];
+      var ok = true;
+      var minY = 1e9, maxY = -1e9;
+      for (k = 0; k < 4; k++) {
+        var pr = frame.project(world.points[face.idx[k]]);
+        if (!pr) { ok = false; break; }
+        poly.push([pr.x, pr.y]);
+        if (pr.y < minY) minY = pr.y;
+        if (pr.y > maxY) maxY = pr.y;
+      }
+      if (!ok) continue;
+
+      var rgb = AXIS_RGB[face.axis];
+      var lambert = 0.5 + 0.5 * Math.max(0, PL.vDot(face.normalWorld, light));
+      var grad = ctx.createLinearGradient(0, minY, 0, maxY);
+
+      if (opaque) {
+        var topC = mixWhite(rgb, 0.66 + 0.16 * lambert);
+        var botC = mixWhite(rgb, 0.34 + 0.16 * lambert);
+        grad.addColorStop(0, 'rgb(' + topC[0] + ',' + topC[1] + ',' + topC[2] + ')');
+        grad.addColorStop(0.55, 'rgb(' + Math.round((topC[0] + botC[0]) / 2) + ',' +
+          Math.round((topC[1] + botC[1]) / 2) + ',' + Math.round((topC[2] + botC[2]) / 2) + ')');
+        grad.addColorStop(1, 'rgb(' + botC[0] + ',' + botC[1] + ',' + botC[2] + ')');
+      } else {
+        var baseA = face.visible ? 0.065 + 0.135 * lambert : 0.02;
+        grad.addColorStop(0, rgba(rgb, baseA * 1.55));
+        grad.addColorStop(0.48, rgba(rgb, baseA));
+        grad.addColorStop(1, rgba(rgb, baseA * 0.35));
+      }
+
+      ctx.beginPath();
+      ctx.moveTo(poly[0][0], poly[0][1]);
+      for (k = 1; k < 4; k++) ctx.lineTo(poly[k][0], poly[k][1]);
+      ctx.closePath();
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      if (!opaque && face.visible) {
+        var sheen = ctx.createLinearGradient(0, minY, 0, minY + (maxY - minY) * 0.75);
+        sheen.addColorStop(0, 'rgba(255,255,255,0.30)');
+        sheen.addColorStop(0.5, 'rgba(255,255,255,0.06)');
+        sheen.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = sheen;
+        ctx.fill();
+
+        /* 面边缘极淡的描边，增强实体感 */
+        ctx.strokeStyle = 'rgba(32,48,80,0.06)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+    }
+
+    /* 选中状态：呼吸光 */
+    if (selected) {
+      var pulse = 0.55 + 0.45 * Math.sin(time * 2.2);
+      ctx.save();
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = 6.5;
+      ctx.strokeStyle = 'rgba(75,107,251,' + (0.06 * pulse).toFixed(3) + ')';
+      for (i = 0; i < world.edges.length; i++) {
+        if (!world.edges[i].visible) continue;
+        var s0 = frame.projectSegment(world.points[world.edges[i].a], world.points[world.edges[i].b]);
+        if (!s0) continue;
+        ctx.beginPath();
+        ctx.moveTo(s0[0].x, s0[0].y);
+        ctx.lineTo(s0[1].x, s0[1].y);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    /* 隐藏棱（按轴着色） */
+    if (!opaque && showHidden) {
+      ctx.save();
+      ctx.setLineDash([3, 5]);
+      ctx.lineWidth = 1;
+      for (i = 0; i < world.edges.length; i++) {
+        var eh = world.edges[i];
+        if (eh.visible) continue;
+        var sh = frame.projectSegment(world.points[eh.a], world.points[eh.b]);
+        if (!sh) continue;
+        ctx.strokeStyle = rgba(AXIS_RGB[eh.axis], 0.32);
+        ctx.beginPath();
+        ctx.moveTo(sh[0].x, sh[0].y);
+        ctx.lineTo(sh[1].x, sh[1].y);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    /* 可见棱：彩色光晕 + 白色亮芯 */
+    ctx.save();
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    for (i = 0; i < world.edges.length; i++) {
+      var ev = world.edges[i];
+      if (!ev.visible) continue;
+      var sv = frame.projectSegment(world.points[ev.a], world.points[ev.b]);
+      if (!sv) continue;
+      ctx.strokeStyle = rgba(AXIS_RGB[ev.axis], 0.22);
+      ctx.lineWidth = 5.5;
+      ctx.beginPath();
+      ctx.moveTo(sv[0].x, sv[0].y);
+      ctx.lineTo(sv[1].x, sv[1].y);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+    ctx.lineWidth = 3;
+    for (i = 0; i < world.edges.length; i++) {
+      var ev1 = world.edges[i];
+      if (!ev1.visible) continue;
+      var sv1 = frame.projectSegment(world.points[ev1.a], world.points[ev1.b]);
+      if (!sv1) continue;
+      ctx.beginPath();
+      ctx.moveTo(sv1[0].x, sv1[0].y);
+      ctx.lineTo(sv1[1].x, sv1[1].y);
+      ctx.stroke();
+    }
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(28,40,64,0.82)';
+    for (i = 0; i < world.edges.length; i++) {
+      var ev2 = world.edges[i];
+      if (!ev2.visible) continue;
+      var sv2 = frame.projectSegment(world.points[ev2.a], world.points[ev2.b]);
+      if (!sv2) continue;
+      ctx.beginPath();
+      ctx.moveTo(sv2[0].x, sv2[0].y);
+      ctx.lineTo(sv2[1].x, sv2[1].y);
+      ctx.stroke();
+    }
+    ctx.restore();
+  };
+
+  /* ============================ 消失点 ============================ */
+  /* ============================ 立方体编号 ============================ */
+  Renderer.prototype.drawCubeBadges = function (scene) {
+    var ctx = this.ctx;
+    var frame = scene.frame;
+    for (var i = 0; i < scene.worlds.length; i++) {
+      var w = scene.worlds[i];
+      var minX = Infinity, maxX = -Infinity, minY = Infinity, count = 0;
+      for (var k = 0; k < w.points.length; k++) {
+        var p = frame.project(w.points[k]);
+        if (!p) continue;
+        if (p.x < minX) minX = p.x;
+        if (p.x > maxX) maxX = p.x;
+        if (p.y < minY) minY = p.y;
+        count++;
+      }
+      if (count < 4) continue;
+      var cx = (minX + maxX) * 0.5;
+      var cy = minY - 17;
+      if (cx < 16 || cx > this.w - 16 || cy < 16 || cy > this.h - 16) continue;
+      var selected = w.selected;
+      var r = 10;
+      ctx.save();
+      ctx.shadowColor = 'rgba(30,50,90,0.18)';
+      ctx.shadowBlur = 8;
+      ctx.shadowOffsetY = 2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, PL.TAU);
+      ctx.fillStyle = selected ? 'rgba(75,107,251,0.96)' : 'rgba(255,255,255,0.95)';
+      ctx.fill();
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetY = 0;
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = selected ? 'rgba(255,255,255,0.85)' : 'rgba(38,66,112,0.18)';
+      ctx.stroke();
+      ctx.fillStyle = selected ? '#ffffff' : '#41537a';
+      ctx.font = '600 9.5px ' + FONT;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(i + 1), cx, cy + 0.5);
+      ctx.restore();
+    }
+  };
+
+  Renderer.prototype.drawVanishingPoints = function (scene, time) {
+    var ctx = this.ctx;
+    var frame = scene.frame;
+    var safe = this.safe;
+    var pulse = 0.5 + 0.5 * Math.sin(time * 2.4);
+    var views = scene.cubeViews || [{ vps: scene.vps, selected: true, world: scene.world }];
+    var entries = [];
+    var seen = Object.create(null);
+    for (var vi = 0; vi < views.length; vi++) {
+      var cv = views[vi];
+      if (!cv.selected && !scene.show.otherPoints) continue;
+      var cpv = frame.project(cv.world ? cv.world.position : scene.world.position) ||
+        { x: frame.cx, y: frame.cy };
+      for (var ai = 0; ai < cv.vps.axes.length; ai++) {
+        var pert = cv.vps.axes[ai];
+        if (pert.infinite) continue;
+        var key = ai + '|' + Math.round(pert.x) + '|' + Math.round(pert.y);
+        var exist = seen[key];
+        if (exist) {
+          if (cv.selected) { exist.selected = true; exist.cp = cpv; }
+          continue;
+        }
+        exist = { axis: ai, vp: pert, selected: !!cv.selected, cp: cpv };
+        seen[key] = exist;
+        entries.push(exist);
+      }
+    }
+    entries.sort(function (a, b) { return (a.selected ? 1 : 0) - (b.selected ? 1 : 0); });
+
+    for (var ei = 0; ei < entries.length; ei++) {
+      var entry = entries[ei];
+      var vp = entry.vp;
+      var i = entry.axis;
+      var cp = entry.cp;
+      var isSel = entry.selected;
+      var rgb = AXIS_RGB[i];
+      var color = AXIS_HEX[i];
+      var letter = 'XYZ'[i];
+      var isHot = isSel && scene.highlightAxis === i;
+
+      if (isSel && vp.onScreen) {
+        var x = vp.x, y = vp.y;
+        ctx.save();
+        var glow = ctx.createRadialGradient(x, y, 0, x, y, 40);
+        glow.addColorStop(0, rgba(rgb, isHot ? 0.5 : 0.34));
+        glow.addColorStop(0.4, rgba(rgb, isHot ? 0.17 : 0.11));
+        glow.addColorStop(1, rgba(rgb, 0));
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(x, y, 40, 0, PL.TAU);
+        ctx.fill();
+
+        ctx.strokeStyle = rgba(rgb, 0.72);
+        ctx.lineWidth = 1.1;
+        ctx.beginPath();
+        ctx.moveTo(x - 17, y); ctx.lineTo(x - 7, y);
+        ctx.moveTo(x + 7, y); ctx.lineTo(x + 17, y);
+        ctx.moveTo(x, y - 17); ctx.lineTo(x, y - 7);
+        ctx.moveTo(x, y + 7); ctx.lineTo(x, y + 17);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(x, y, 10.5 + pulse * 2.5, 0, PL.TAU);
+        ctx.strokeStyle = rgba(rgb, 0.46);
+        ctx.lineWidth = 1.1;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(x, y, 3.7, 0, PL.TAU);
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+        ctx.lineWidth = 1.7;
+        ctx.stroke();
+        ctx.restore();
+
+        if (scene.show.labels) {
+          var text = 'VP ' + letter;
+          var tw = 0;
+          ctx.save();
+          ctx.font = '600 10px ' + FONT;
+          tw = ctx.measureText(text).width + 16;
+          ctx.restore();
+          var lx = x + 17;
+          if (lx + tw > safe.right - 6) lx = x - tw - 17;
+          this.chip(lx, y - 27, text, rgba(rgb, 0.98), rgba(rgb, 0.38));
+        }
+      } else if (isSel) {
+        /* 屏幕外（绘图区外）：沿方向在安全区边缘放置指示器 */
+        var dx = vp.x - cp.x, dy = vp.y - cp.y;
+        var len = Math.hypot(dx, dy);
+        if (len < 1) continue;
+        dx /= len; dy /= len;
+        var tx = dx > 0 ? (safe.right - cp.x) / dx : dx < 0 ? (safe.left - cp.x) / dx : Infinity;
+        var ty = dy > 0 ? (safe.bottom - cp.y) / dy : dy < 0 ? (safe.top - cp.y) / dy : Infinity;
+        var t = Math.min(tx, ty);
+        if (!isFinite(t) || t <= 0) continue;
+        var ex = cp.x + dx * t, ey = cp.y + dy * t;
+        var ang = Math.atan2(dy, dx);
+
+        ctx.save();
+        var glow2 = ctx.createRadialGradient(ex, ey, 0, ex, ey, 26);
+        glow2.addColorStop(0, rgba(rgb, isHot ? 0.4 : 0.24));
+        glow2.addColorStop(1, rgba(rgb, 0));
+        ctx.fillStyle = glow2;
+        ctx.beginPath();
+        ctx.arc(ex, ey, 26, 0, PL.TAU);
+        ctx.fill();
+
+        ctx.translate(ex, ey);
+        ctx.rotate(ang);
+        ctx.beginPath();
+        ctx.moveTo(7, 0);
+        ctx.lineTo(-6, 5.4);
+        ctx.lineTo(-6, -5.4);
+        ctx.closePath();
+        ctx.fillStyle = rgba(rgb, 0.92);
+        ctx.fill();
+        ctx.restore();
+
+        if (scene.show.labels) {
+          var ctext = 'VP ' + letter + ' · ' + fmtDist(vp.dist);
+          ctx.save();
+          ctx.font = '600 9.5px ' + FONT;
+          var cw = ctx.measureText(ctext).width + 16;
+          ctx.restore();
+          var cx2 = ex - dx * (cw * 0.5 + 18);
+          var cy2 = ey - dy * (cw * 0.5 + 18);
+          /* 保持在安全区内 */
+          cx2 = PL.clamp(cx2, safe.left + cw * 0.5 + 4, safe.right - cw * 0.5 - 4);
+          cy2 = PL.clamp(cy2, safe.top + 12, safe.bottom - 12);
+          this.chip(cx2 - cw * 0.5, cy2 - 9, ctext, rgba(rgb, 0.98), rgba(rgb, 0.38));
+        }
+      } else if (vp.onScreen) {
+        /* 未选中立方体：较小的消失点标记 */
+        var ox = vp.x, oy = vp.y;
+        ctx.save();
+        var glowO = ctx.createRadialGradient(ox, oy, 0, ox, oy, 24);
+        glowO.addColorStop(0, rgba(rgb, 0.22));
+        glowO.addColorStop(1, rgba(rgb, 0));
+        ctx.fillStyle = glowO;
+        ctx.beginPath();
+        ctx.arc(ox, oy, 24, 0, PL.TAU);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(ox, oy, 7, 0, PL.TAU);
+        ctx.strokeStyle = rgba(rgb, 0.6);
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(ox, oy, 3, 0, PL.TAU);
+        ctx.fillStyle = rgba(rgb, 0.92);
+        ctx.fill();
+        ctx.restore();
+      } else {
+        /* 未选中立方体：屏幕外的小箭头 */
+        var dxO = vp.x - cp.x, dyO = vp.y - cp.y;
+        var lenO = Math.hypot(dxO, dyO);
+        if (lenO < 1) continue;
+        dxO /= lenO; dyO /= lenO;
+        var txO = dxO > 0 ? (safe.right - cp.x) / dxO : dxO < 0 ? (safe.left - cp.x) / dxO : Infinity;
+        var tyO = dyO > 0 ? (safe.bottom - cp.y) / dyO : dyO < 0 ? (safe.top - cp.y) / dyO : Infinity;
+        var tO = Math.min(txO, tyO);
+        if (!isFinite(tO) || tO <= 0) continue;
+        var exO = cp.x + dxO * tO, eyO = cp.y + dyO * tO;
+        var angO = Math.atan2(dyO, dxO);
+        ctx.save();
+        var gO = ctx.createRadialGradient(exO, eyO, 0, exO, eyO, 16);
+        gO.addColorStop(0, rgba(rgb, 0.16));
+        gO.addColorStop(1, rgba(rgb, 0));
+        ctx.fillStyle = gO;
+        ctx.beginPath();
+        ctx.arc(exO, eyO, 16, 0, PL.TAU);
+        ctx.fill();
+        ctx.translate(exO, eyO);
+        ctx.rotate(angO);
+        ctx.beginPath();
+        ctx.moveTo(5.5, 0);
+        ctx.lineTo(-4.8, 4);
+        ctx.lineTo(-4.8, -4);
+        ctx.closePath();
+        ctx.fillStyle = rgba(rgb, 0.62);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+    return entries.length;
+  };
+
+  Renderer.prototype.chip = function (x, y, text, color, border) {
+    var ctx = this.ctx;
+    ctx.save();
+    ctx.font = '600 9.5px ' + FONT;
+    var tw = ctx.measureText(text).width;
+    var padX = 8, hgt = 19;
+    var w = tw + padX * 2;
+    ctx.shadowColor = 'rgba(30,50,90,0.16)';
+    ctx.shadowBlur = 8;
+    ctx.shadowOffsetY = 2;
+    roundRect(ctx, x, y, w, hgt, 9);
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.fill();
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = 0;
+    ctx.strokeStyle = border || 'rgba(38,66,112,0.14)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.fillStyle = color;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, x + w * 0.5, y + hgt * 0.5 + 0.5);
+    ctx.restore();
+  };
+
+  /* ============================ 变换手柄 ============================ */
+  Renderer.prototype.drawGizmo = function (scene) {
+    var gizmo = scene.gizmo;
+    if (!gizmo || !gizmo.length) return;
+    var ctx = this.ctx;
+    var hover = scene.hoverHandle;
+    var active = scene.activeHandle;
+    var ref = active || hover;
+    var spaceCN = scene.space === 'local' ? '本地' : '全局';
+
+    if (scene.mode === 'move') {
+      /* 平面二维移动手柄（半透明方块） */
+      for (var pi = 0; pi < gizmo.length; pi++) {
+        var ph = gizmo[pi];
+        if (ph.mode !== 'move-plane') continue;
+        var prgb = AXIS_RGB[ph.axis];
+        var plit = ref && ref.mode === 'move-plane' && ref.plane &&
+          ref.plane[0] === ph.plane[0] && ref.plane[1] === ph.plane[1];
+        var pdim = ref && !plit ? 0.35 : 1;
+        var pts0 = ph.points;
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(pts0[0].x, pts0[0].y);
+        for (var pk = 1; pk < pts0.length; pk++) ctx.lineTo(pts0[pk].x, pts0[pk].y);
+        ctx.closePath();
+        ctx.fillStyle = rgba(prgb, (plit ? 0.22 : 0.085) * pdim);
+        ctx.fill();
+        ctx.strokeStyle = rgba(prgb, (plit ? 0.9 : 0.4) * pdim);
+        ctx.lineWidth = plit ? 1.8 : 1.1;
+        if (plit) { ctx.shadowColor = rgba(prgb, 0.8); ctx.shadowBlur = 12; }
+        ctx.stroke();
+        ctx.restore();
+        if (plit && scene.show.labels) {
+          var pcx = 0, pcy = 0;
+          for (var pj = 0; pj < pts0.length; pj++) { pcx += pts0[pj].x; pcy += pts0[pj].y; }
+          pcx /= pts0.length; pcy /= pts0.length;
+          this.chip(pcx + 8, pcy - 30, ph.label + ' · ' + spaceCN + '平面移动', rgba(prgb, 0.98), rgba(prgb, 0.42));
+        }
+      }
+
+      for (var i = 0; i < gizmo.length; i++) {
+        var handle = gizmo[i];
+        if (handle.mode !== 'move') continue;
+        var rgb = AXIS_RGB[handle.axis];
+        var lit = !!(ref && ref.mode === 'move' && ref.axis === handle.axis);
+        var dim = ref && !lit ? 0.3 : 1;
+
+        if (handle.degenerate) {
+          ctx.save();
+          ctx.strokeStyle = rgba(rgb, (lit ? 1 : 0.85) * dim);
+          ctx.lineWidth = lit ? 2.6 : 1.9;
+          if (lit) { ctx.shadowColor = rgba(rgb, 0.9); ctx.shadowBlur = 14; }
+          ctx.beginPath();
+          ctx.arc(handle.ox, handle.oy, 10, 0, PL.TAU);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(handle.ox, handle.oy, 3.2, 0, PL.TAU);
+          ctx.fillStyle = rgba(rgb, (lit ? 1 : 0.9) * dim);
+          ctx.fill();
+          ctx.restore();
+
+          ctx.save();
+          ctx.font = '700 8.5px ' + FONT;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = rgba(rgb, (lit ? 1 : 0.85));
+          ctx.fillText('XYZ'[handle.axis], handle.ox - 16, handle.oy - 14);
+          ctx.restore();
+
+          if (lit && scene.show.labels) {
+            this.chip(handle.ox + 22, handle.oy - 30, 'XYZ'[handle.axis] + ' 轴 · ' + spaceCN + '深度', rgba(rgb, 0.98), rgba(rgb, 0.42));
+          }
+          continue;
+        }
+
+        var dx = handle.tx - handle.ox, dy = handle.ty - handle.oy;
+        if (Math.hypot(dx, dy) < 4) continue;
+
+        ctx.save();
+        ctx.lineCap = 'round';
+        /* 白色描边，保证在浅色场景中清晰 */
+        ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+        ctx.lineWidth = lit ? 6 : 5;
+        ctx.beginPath();
+        ctx.moveTo(handle.ox, handle.oy);
+        ctx.lineTo(handle.tx, handle.ty);
+        ctx.stroke();
+
+        ctx.strokeStyle = rgba(rgb, (lit ? 1 : 0.88) * dim);
+        ctx.lineWidth = lit ? 3 : 2.4;
+        if (lit) { ctx.shadowColor = rgba(rgb, 0.9); ctx.shadowBlur = 14; }
+        ctx.beginPath();
+        ctx.moveTo(handle.ox, handle.oy);
+        ctx.lineTo(handle.tx, handle.ty);
+        ctx.stroke();
+
+        var ang = Math.atan2(dy, dx);
+        var size = lit ? 12 : 10.5;
+        ctx.beginPath();
+        ctx.moveTo(handle.tx, handle.ty);
+        ctx.lineTo(handle.tx - Math.cos(ang - 0.42) * size, handle.ty - Math.sin(ang - 0.42) * size);
+        ctx.lineTo(handle.tx - Math.cos(ang + 0.42) * size, handle.ty - Math.sin(ang + 0.42) * size);
+        ctx.closePath();
+        ctx.fillStyle = rgba(rgb, (lit ? 1 : 0.92) * dim);
+        ctx.fill();
+        ctx.restore();
+
+        if (lit && scene.show.labels) {
+          this.chip(handle.tx + 11, handle.ty - 28, 'XYZ'[handle.axis] + ' 轴 · ' + spaceCN + '移动', rgba(rgb, 0.98), rgba(rgb, 0.42));
+        }
+      }
+
+      /* 中心点 */
+      var ox = gizmo[0] ? gizmo[0].ox : null;
+      if (ox !== null) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(35,50,80,0.85)';
+        ctx.beginPath();
+        ctx.arc(ox, gizmo[0].oy, 2.2, 0, PL.TAU);
+        ctx.fill();
+        ctx.restore();
+      }
+    } else {
+      var passes = [0, 1]; /* 0 = 背面, 1 = 正面 */
+      for (var p = 0; p < 2; p++) {
+        for (var j = 0; j < gizmo.length; j++) {
+          var ring = gizmo[j];
+          if (ring.mode !== 'rotate') continue;
+          var rgb2 = AXIS_RGB[ring.axis];
+          var lit2 = !!(ref && ref.mode === 'rotate' && ref.axis === ring.axis);
+          var dim2 = ref && ref.mode !== 'rotate-view' && !lit2 ? 0.26 : 1;
+          ctx.save();
+          ctx.lineWidth = lit2 ? 2.8 : 1.8;
+          ctx.strokeStyle = rgba(rgb2, (lit2 ? 1 : p === 1 ? 0.7 : 0.22) * dim2);
+          if (lit2) { ctx.shadowColor = rgba(rgb2, 0.85); ctx.shadowBlur = 12; }
+          ctx.beginPath();
+          var started = false;
+          for (var k = 0; k < ring.points.length - 1; k++) {
+            var a0 = ring.points[k], a1 = ring.points[k + 1];
+            if (!a0 || !a1) { started = false; continue; }
+            var front = a0.depth <= ring.centerDepth && a1.depth <= ring.centerDepth;
+            if ((p === 0 && front) || (p === 1 && !front)) { started = false; continue; }
+            if (!started) { ctx.moveTo(a0.x, a0.y); started = true; }
+            ctx.lineTo(a1.x, a1.y);
+          }
+          ctx.stroke();
+          ctx.restore();
+
+          if (lit2 && scene.show.labels && p === 1) {
+            var labelPt = ring.points[Math.floor(ring.points.length * 0.125)];
+            if (labelPt) this.chip(labelPt.x + 12, labelPt.y - 26, 'XYZ'[ring.axis] + ' 轴 · ' + spaceCN + '旋转', rgba(rgb2, 0.98), rgba(rgb2, 0.42));
+          }
+        }
+      }
+
+      /* 最外层白色自由旋转外环 */
+      for (var vj = 0; vj < gizmo.length; vj++) {
+        var vh = gizmo[vj];
+        if (vh.mode !== 'rotate-view') continue;
+        var vlit = !!(ref && ref.mode === 'rotate-view');
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(vh.ox, vh.oy, vh.radius, 0, PL.TAU);
+        ctx.strokeStyle = vlit ? 'rgba(75,107,251,0.5)' : 'rgba(40,60,100,0.22)';
+        ctx.lineWidth = vlit ? 5.5 : 4.2;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(vh.ox, vh.oy, vh.radius, 0, PL.TAU);
+        ctx.strokeStyle = vlit ? 'rgba(255,255,255,1)' : 'rgba(255,255,255,0.92)';
+        ctx.lineWidth = vlit ? 3 : 2.1;
+        ctx.shadowColor = vlit ? 'rgba(75,107,251,0.6)' : 'rgba(30,50,90,0.18)';
+        ctx.shadowBlur = vlit ? 12 : 5;
+        ctx.stroke();
+        ctx.restore();
+        if (vlit && scene.show.labels) {
+          this.chip(vh.ox + vh.radius * 0.66, vh.oy - vh.radius * 0.66 - 28,
+            '自由旋转 · 视角方向', rgba([40, 58, 96], 0.95), 'rgba(75,107,251,0.45)');
+        }
+      }
+    }
+  };
+
+  Renderer.prototype.drawDragInfo = function (info) {
+    var ctx = this.ctx;
+    var rgb = AXIS_RGB[info.axis] || [75, 107, 251];
+    ctx.save();
+    ctx.font = '600 11px ' + FONT_MONO;
+    var tw = ctx.measureText(info.text).width;
+    var w = tw + 22, h = 26;
+    var x = info.x + 18, y = info.y - 38;
+    roundRect(ctx, x, y, w, h, 9);
+    ctx.fillStyle = 'rgba(255,255,255,0.96)';
+    ctx.fill();
+    ctx.strokeStyle = rgba(rgb, 0.5);
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.fillStyle = rgba(rgb, 1);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(info.text, x + w * 0.5, y + h * 0.5 + 0.5);
+    ctx.restore();
+  };
+
+  global.PLRenderer = Renderer;
+  global.PL_AXIS_HEX = AXIS_HEX;
+  global.PL_AXIS_RGB = AXIS_RGB;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+/* ---- app.js ---- */
+/* ============================================================
+   透视实验室 · Perspective Lab
+   app.js — 状态、自由摄像机、立方体变换、预设动画、交互与 HUD
+   ============================================================ */
+(function () {
+  'use strict';
+
+  var PL = window.PL;
+  var S = window.PLScene;
+  var Renderer = window.PLRenderer;
+  var DEG = PL.DEG;
+
+  var CUBE_HALF = 0.9;
+  var AXES = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+  var AXIS_LETTER = ['X', 'Y', 'Z'];
+  var HOME_POS = [0, 0.9, 0];
+  var HOME_QUAT = PL.qIdentity();
+  var DEFAULT_YAW = 30 * DEG;
+  var DEFAULT_PITCH = 0.02;
+  var DEFAULT_FOV = 90 * DEG;
+  /* 预设相机距离：让立方体始终占画面高度的固定比例（与视场角无关） */
+  var FRAME_RATIO = 0.10;
+  function presetDistance(fov) {
+    return CUBE_HALF / (2 * FRAME_RATIO * Math.tan(fov * 0.5));
+  }
+  var TYPE_TEXT = { one: '一点透视', two: '两点透视', three: '三点透视', free: '自由视角' };
+  var TYPE_META = { one: '1 VP', two: '2 VP', three: '3 VP', free: '0 VP' };
+  var TYPE_NOTE = {
+    one: '正对立方体：深度方向汇聚于一点，其余两组棱与画面平行',
+    two: '两组水平棱分别向两侧消失 · 竖直棱保持平行',
+    three: '三组棱同时收缩，三个消失点共同决定画面空间',
+    free: '转动摄像机或立方体，观察消失点如何随之移动'
+  };
+
+  /* ------------------------------------------------------------------
+   * DOM
+   * ------------------------------------------------------------------ */
+  var canvas = document.getElementById('stage');
+  var renderer = new Renderer(canvas);
+  var cubeModel = S.buildCube(CUBE_HALF);
+
+  var ui = {
+    fps: document.getElementById('fps'),
+    badge: document.getElementById('badge'),
+    badgeText: document.getElementById('badgeText'),
+    badgeMeta: document.getElementById('badgeMeta'),
+    badgeNote: document.getElementById('badgeNote'),
+    presetButtons: Array.prototype.slice.call(document.querySelectorAll('.preset')),
+    vpRows: Array.prototype.slice.call(document.querySelectorAll('.vp-row')),
+    modeSeg: document.getElementById('modeSeg'),
+    segThumb: document.getElementById('segThumb'),
+    modeButtons: Array.prototype.slice.call(document.querySelectorAll('#modeSeg .seg')),
+    spaceSeg: document.getElementById('spaceSeg'),
+    spaceButtons: Array.prototype.slice.call(document.querySelectorAll('#spaceSeg .seg')),
+    cubePos: document.getElementById('cubePos'),
+    cubeRot: document.getElementById('cubeRot'),
+    fovValue: document.getElementById('fovValue'),
+    focalValue: document.getElementById('focalValue'),
+    eyeValue: document.getElementById('eyeValue'),
+    fovRange: document.getElementById('fovRange'),
+    tgLines: document.getElementById('tgLines'),
+    tgPoints: document.getElementById('tgPoints'),
+    tgOtherLines: document.getElementById('tgOtherLines'),
+    tgOtherPoints: document.getElementById('tgOtherPoints'),
+    tgHorizon: document.getElementById('tgHorizon'),
+    tgGrid: document.getElementById('tgGrid'),
+    tgOpaque: document.getElementById('tgOpaque'),
+    tgHidden: document.getElementById('tgHidden'),
+    tgLabels: document.getElementById('tgLabels'),
+    tgSpin: document.getElementById('tgSpin'),
+    btnAlign: document.getElementById('btnAlign'),
+    btnResetCube: document.getElementById('btnResetCube'),
+    btnFocus: document.getElementById('btnFocus'),
+    btnResetView: document.getElementById('btnResetView'),
+    panelToggle: document.getElementById('panelToggle'),
+    panelLeft: document.getElementById('panelLeft'),
+    panelRight: document.getElementById('panelRight'),
+    collapseLeft: document.getElementById('collapseLeft'),
+    collapseRight: document.getElementById('collapseRight'),
+    tabLeft: document.getElementById('tabLeft'),
+    tabRight: document.getElementById('tabRight'),
+    cubeList: document.getElementById('cubeList'),
+    btnAddCube: document.getElementById('btnAddCube'),
+    btnDeleteCube: document.getElementById('btnDeleteCube')
+  };
+
+  /* ------------------------------------------------------------------
+   * State
+   * ------------------------------------------------------------------ */
+  var state = {
+    mode: 'move',
+    space: 'local',
+    show: { lines: true, points: true, otherLines: true, otherPoints: true, horizon: true, grid: true, hidden: true, opaque: true, labels: true },
+    selected: true,
+    spin: false,
+    hover: null,
+    hoverCube: -1,
+    active: null,
+    dragInfo: null,
+    rowAxis: -1,
+    pinAxis: -1,
+    anim: null,
+    time: 0,
+    fps: 60
+  };
+  var cubes = [{ position: HOME_POS.slice(), quat: HOME_QUAT.slice() }];
+  var selectedIndex = 0;
+  var cube = cubes[0];
+  var camD = {
+    target: cube.position.slice(), yaw: DEFAULT_YAW, pitch: DEFAULT_PITCH,
+    distance: presetDistance(DEFAULT_FOV), fov: DEFAULT_FOV
+  };
+  var camNow = {
+    target: camD.target.slice(), yaw: camD.yaw, pitch: camD.pitch,
+    distance: camD.distance, fov: camD.fov
+  };
+
+  var view = null;
+  var safeRect = computeSafe(renderer.w, renderer.h);
+  var lastHud = 0;
+  var ready = false;
+
+  /* ------------------------------------------------------------------
+   * 工具
+   * ------------------------------------------------------------------ */
+  function clampPitch(p) { return PL.clamp(p, -1.45, 1.45); }
+  function shortestAngle(a) {
+    a = (a + Math.PI) % (Math.PI * 2);
+    if (a < 0) a += Math.PI * 2;
+    return a - Math.PI;
+  }
+  function copyCam(dst, src) {
+    dst.target = src.target.slice();
+    dst.yaw = src.yaw;
+    dst.pitch = src.pitch;
+    dst.distance = src.distance;
+    dst.fov = src.fov;
+  }
+  function fmtK(n) {
+    if (!isFinite(n)) return '∞';
+    if (n >= 10000) return (n / 1000).toFixed(1) + 'k';
+    return String(Math.round(n));
+  }
+  function panelCollapsed(side) {
+    var p = side === 'left' ? ui.panelLeft : ui.panelRight;
+    return !!(p && p.classList.contains('is-collapsed'));
+  }
+
+  function computeSafe(w, h) {
+    if (w > 1080) {
+      return {
+        left: panelCollapsed('left') ? 26 : 292,
+        right: w - (panelCollapsed('right') ? 26 : 292),
+        top: 98,
+        bottom: h - 96
+      };
+    }
+    if (w > 900) {
+      return {
+        left: panelCollapsed('left') ? 26 : 264,
+        right: w - (panelCollapsed('right') ? 26 : 264),
+        top: 96,
+        bottom: h - 92
+      };
+    }
+    if (w > 640) return { left: 30, right: w - 30, top: 92, bottom: h - 96 };
+    return { left: 26, right: w - 26, top: 84, bottom: h - 64 };
+  }
+
+  /* ------------------------------------------------------------------
+   * 场景计算
+   * ------------------------------------------------------------------ */
+  function updateScene() {
+    safeRect = computeSafe(renderer.w, renderer.h);
+    var frame = PL.makeFrame(camNow, renderer.w, renderer.h);
+    var worlds = [];
+    var cubeViews = [];
+    var selectedView = null;
+    for (var i = 0; i < cubes.length; i++) {
+      var w = S.cubeWorld(cubeModel, cubes[i].position, cubes[i].quat);
+      S.updateVisibility(w, frame.pos, frame);
+      w.index = i;
+      w.selected = i === selectedIndex;
+      worlds.push(w);
+      var vps = S.computeVPs(frame, cubes[i].quat);
+      for (var j = 0; j < vps.axes.length; j++) {
+        var a = vps.axes[j];
+        a.onScreen = !a.infinite &&
+          a.x > safeRect.left + 12 && a.x < safeRect.right - 12 &&
+          a.y > safeRect.top + 12 && a.y < safeRect.bottom - 12;
+      }
+      var lines = S.vanishingLines(frame, w, vps, {
+        showHidden: state.show.hidden && !state.show.opaque,
+        safeRect: safeRect
+      });
+      var cv = { world: w, vps: vps, lines: lines, selected: i === selectedIndex, index: i };
+      cubeViews.push(cv);
+      if (i === selectedIndex) selectedView = cv;
+    }
+    if (!selectedView) selectedView = cubeViews[0];
+    var world = selectedView.world;
+    var vps = selectedView.vps;
+    var lines = selectedView.lines;
+    var horizon = frame.horizon();
+    var gizmoAxes = state.space === 'local' ? S.getAxes(cube.quat) : [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+    var gizmo = state.mode === 'none' ? [] : S.buildGizmo(frame, cube.position, CUBE_HALF, state.mode, gizmoAxes);
+    view = {
+      frame: frame, worlds: worlds, world: world, vps: vps, lines: lines,
+      cubeViews: cubeViews, horizon: horizon, gizmo: gizmo, space: state.space
+    };
+  }
+
+  /* ------------------------------------------------------------------
+   * 摄像机平滑 & 动画
+   * ------------------------------------------------------------------ */
+  function smoothCamera(dt) {
+    if (state.anim) return;
+    var k = 1 - Math.exp(-16 * dt);
+    camNow.target = PL.vLerp(camNow.target, camD.target, k);
+    camNow.yaw += shortestAngle(camD.yaw - camNow.yaw) * k;
+    camNow.pitch = PL.lerp(camNow.pitch, camD.pitch, k);
+    camNow.distance = PL.lerp(camNow.distance, camD.distance, k);
+    camNow.fov = PL.lerp(camNow.fov, camD.fov, k);
+  }
+
+  function animateTo(target, dur) {
+    var toCam = target.cam ? {
+      target: target.cam.target.slice(), yaw: target.cam.yaw, pitch: target.cam.pitch,
+      distance: target.cam.distance, fov: target.cam.fov
+    } : null;
+    var toPos = target.pos ? target.pos.slice() : null;
+    var toQuat = target.quat ? target.quat.slice() : null;
+    if (!toCam && !toPos && !toQuat) return;
+
+    state.anim = {
+      t: 0,
+      dur: dur || 1.0,
+      fromCam: {
+        target: camNow.target.slice(), yaw: camNow.yaw, pitch: camNow.pitch,
+        distance: camNow.distance, fov: camNow.fov
+      },
+      toCam: toCam,
+      fromPos: cube.position.slice(),
+      toPos: toPos,
+      fromQuat: cube.quat.slice(),
+      toQuat: toQuat
+    };
+  }
+
+  function cancelAnim() {
+    if (!state.anim) return;
+    state.anim = null;
+    copyCam(camD, camNow);
+  }
+
+  function updateAnim(dt) {
+    var a = state.anim;
+    if (!a) return;
+    a.t = Math.min(1, a.t + dt / a.dur);
+    var e = PL.easeInOut(a.t);
+    if (a.toCam) {
+      var yawTo = a.fromCam.yaw + shortestAngle(a.toCam.yaw - a.fromCam.yaw);
+      camNow.target = PL.vLerp(a.fromCam.target, a.toCam.target, e);
+      camNow.yaw = PL.lerp(a.fromCam.yaw, yawTo, e);
+      camNow.pitch = PL.lerp(a.fromCam.pitch, a.toCam.pitch, e);
+      camNow.distance = PL.lerp(a.fromCam.distance, a.toCam.distance, e);
+      camNow.fov = PL.lerp(a.fromCam.fov, a.toCam.fov, e);
+      copyCam(camD, camNow);
+    }
+    if (a.toPos) cube.position = PL.vLerp(a.fromPos, a.toPos, e);
+    if (a.toQuat) cube.quat = PL.qSlerp(a.fromQuat, a.toQuat, e);
+    if (a.t >= 1) {
+      if (a.toCam) copyCam(camNow, camD);
+      if (a.toPos) cube.position = a.toPos.slice();
+      if (a.toQuat) cube.quat = a.toQuat.slice();
+      state.anim = null;
+    }
+  }
+
+  /* ------------------------------------------------------------------
+   * 预设
+   * ------------------------------------------------------------------ */
+  /* 预设视角只改变摄像机：方向定义在立方体本地坐标系中，
+     因此立方体被移动 / 旋转后，预设依然以它为中心并保持相同的透视类型。 */
+  var PRESETS = {
+    one: { dir: [0, 0, 1] },
+    two: {
+      dir: [Math.sin(35 * DEG), 0, Math.cos(35 * DEG)]
+    },
+    three: {
+      dir: [
+        Math.sin(28 * DEG) * Math.cos(20 * DEG),
+        Math.sin(20 * DEG),
+        Math.cos(28 * DEG) * Math.cos(20 * DEG)
+      ]
+    },
+    aerial: {
+      dir: [
+        Math.sin(32 * DEG) * Math.cos(50 * DEG),
+        Math.sin(50 * DEG),
+        Math.cos(32 * DEG) * Math.cos(50 * DEG)
+      ]
+    }
+  };
+
+  function cameraFromLocalDir(localDir, fov) {
+    var d = PL.vNorm(PL.qRotate(cube.quat, localDir));
+    var yaw = Math.atan2(d[0], d[2]);
+    var pitch = Math.asin(PL.clamp(d[1], -1, 1));
+    return {
+      target: cube.position.slice(),
+      yaw: yaw,
+      pitch: pitch,
+      distance: presetDistance(fov),
+      fov: fov
+    };
+  }
+
+  function setPresetActive(name) {
+    ui.presetButtons.forEach(function (b) {
+      b.classList.toggle('is-active', b.getAttribute('data-preset') === name);
+    });
+  }
+  function clearPreset() { setPresetActive(null); }
+
+  function applyPreset(name) {
+    var p = PRESETS[name];
+    if (!p) return;
+    if (state.spin) { state.spin = false; ui.tgSpin.checked = false; }
+    setPresetActive(name);
+    animateTo({ cam: cameraFromLocalDir(p.dir, camD.fov) }, 1.05);
+  }
+
+  /* ------------------------------------------------------------------
+   * 视角操作
+   * ------------------------------------------------------------------ */
+  function focusCube() {
+    clearPreset();
+    animateTo({
+      cam: {
+        target: cube.position.slice(),
+        yaw: camNow.yaw,
+        pitch: camNow.pitch,
+        distance: PL.clamp(camNow.distance, 1.6, 24),
+        fov: camNow.fov
+      }
+    }, 0.6);
+  }
+
+  function resetView() {
+    clearPreset();
+    var dir = [
+      Math.sin(DEFAULT_YAW) * Math.cos(DEFAULT_PITCH),
+      Math.sin(DEFAULT_PITCH),
+      Math.cos(DEFAULT_YAW) * Math.cos(DEFAULT_PITCH)
+    ];
+    animateTo({ cam: cameraFromLocalDir(dir, DEFAULT_FOV) }, 0.8);
+  }
+
+  function resetCube() {
+    clearPreset();
+    animateTo({ pos: HOME_POS, quat: HOME_QUAT }, 0.7);
+  }
+
+  function alignCube() {
+    clearPreset();
+    animateTo({ quat: PL.qIdentity() }, 0.7);
+  }
+
+  /* ------------------------------------------------------------------
+   * 多立方体
+   * ------------------------------------------------------------------ */
+  function updateCubeUI() {
+    if (!ui.cubeList) return;
+    ui.cubeList.innerHTML = '';
+    cubes.forEach(function (c, i) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'cube-chip' + (i === selectedIndex ? ' is-active' : '');
+      b.textContent = String(i + 1);
+      b.title = '选择立方体 ' + (i + 1);
+      b.setAttribute('aria-pressed', i === selectedIndex ? 'true' : 'false');
+      b.addEventListener('click', function () { selectCube(i); });
+      ui.cubeList.appendChild(b);
+    });
+    if (ui.btnDeleteCube) ui.btnDeleteCube.disabled = cubes.length <= 1;
+  }
+
+  function selectCube(index) {
+    if (index < 0 || index >= cubes.length || index === selectedIndex) return;
+    cancelAnim();
+    clearPreset();
+    selectedIndex = index;
+    cube = cubes[index];
+    state.hover = null;
+    state.hoverCube = -1;
+    canvas.classList.remove('is-cube-hover');
+    updateCubeUI();
+  }
+
+  function addCube() {
+    cancelAnim();
+    clearPreset();
+    var base = cube;
+    var right = view ? view.frame.right : [1, 0, 0];
+    var pos = [
+      base.position[0] + right[0] * 2.8,
+      base.position[1],
+      base.position[2] + right[2] * 2.8
+    ];
+    cubes.push({ position: pos, quat: PL.qIdentity() });
+    selectedIndex = cubes.length - 1;
+    cube = cubes[selectedIndex];
+    state.hover = null;
+    state.hoverCube = -1;
+    updateCubeUI();
+
+    /* 把所有立方体纳入取景范围：目标点取中心，必要时拉远镜头 */
+    var cx = 0, cy = 0, cz = 0;
+    for (var i = 0; i < cubes.length; i++) {
+      cx += cubes[i].position[0];
+      cy += cubes[i].position[1];
+      cz += cubes[i].position[2];
+    }
+    cx /= cubes.length; cy /= cubes.length; cz /= cubes.length;
+    var maxR = 0;
+    for (i = 0; i < cubes.length; i++) {
+      var dx = cubes[i].position[0] - cx;
+      var dy = cubes[i].position[1] - cy;
+      var dz = cubes[i].position[2] - cz;
+      maxR = Math.max(maxR, Math.hypot(dx, dy, dz));
+    }
+    maxR += CUBE_HALF * 1.5;
+    camD.target = [cx, cy, cz];
+    camD.distance = Math.max(camD.distance, maxR / Math.tan(camD.fov * 0.5) * 1.25);
+  }
+
+  function deleteCube() {
+    if (cubes.length <= 1) return;
+    cancelAnim();
+    clearPreset();
+    cubes.splice(selectedIndex, 1);
+    selectedIndex = Math.min(selectedIndex, cubes.length - 1);
+    cube = cubes[selectedIndex];
+    state.hover = null;
+    state.hoverCube = -1;
+    canvas.classList.remove('is-cube-hover');
+    updateCubeUI();
+  }
+
+  /* ------------------------------------------------------------------
+   * 指针交互
+   * ------------------------------------------------------------------ */
+  var pointers = new Map();
+  var drag = null;
+
+  function pickCubeAt(x, y) {
+    if (!view) return -1;
+    var best = -1, bestDepth = Infinity;
+    for (var i = 0; i < view.worlds.length; i++) {
+      var w = view.worlds[i];
+      if (S.hitTestCube(x, y, view.frame, w)) {
+        var d = view.frame.toCamSpace(w.position)[2];
+        if (d < bestDepth) { bestDepth = d; best = i; }
+      }
+    }
+    return best;
+  }
+
+  function hitTest(x, y, radius) {
+    if (!view) return null;
+    var handle = S.hitTestGizmo(x, y, view.gizmo);
+    if (handle) return { type: 'gizmo', handle: handle };
+    var index = pickCubeAt(x, y);
+    if (index >= 0) return { type: 'cube', index: index };
+    return null;
+  }
+
+  function beginTransform(handle, e) {
+    var frame = view.frame;
+    var ray = frame.unproject(e.clientX, e.clientY);
+    var center = cube.position.slice();
+    var axisDir = handle.axisDir ? handle.axisDir.slice() : null;
+
+    if (handle.mode === 'move') {
+      if (!axisDir) axisDir = AXES[handle.axis].slice();
+      if (handle.degenerate) {
+        state.active = {
+          mode: 'move', axis: handle.axis, handle: handle, degenerate: true,
+          axisDir: axisDir, startPos: center, startQuat: cube.quat.slice(), startY: e.clientY
+        };
+      } else {
+        var t = PL.rayLineParam(ray.origin, ray.dir, center, axisDir);
+        if (t === null) return;
+        state.active = {
+          mode: 'move', axis: handle.axis, handle: handle,
+          axisDir: axisDir, startT: t, startPos: center, startQuat: cube.quat.slice()
+        };
+      }
+    } else if (handle.mode === 'move-plane') {
+      var planeHit = PL.rayPlane(ray.origin, ray.dir, handle.n, center);
+      if (!planeHit) return;
+      state.active = {
+        mode: 'move-plane', axis: handle.axis, handle: handle,
+        startPos: center, startQuat: cube.quat.slice(), startHit: planeHit,
+        u: handle.u.slice(), v: handle.v.slice(), n: handle.n.slice(), label: handle.label
+      };
+    } else if (handle.mode === 'rotate-view') {
+      state.active = {
+        mode: 'rotate-view', axis: -1, handle: handle,
+        startQuat: cube.quat.slice(),
+        right: frame.right.slice(), up: frame.up.slice(),
+        startX: e.clientX, startY: e.clientY
+      };
+    } else {
+      if (!axisDir) axisDir = AXES[handle.axis].slice();
+      var hit = PL.rayPlane(ray.origin, ray.dir, axisDir, center);
+      if (!hit) return;
+      var v = PL.vNorm(PL.vSub(hit, center));
+      if (PL.vLen(v) < 0.5) return;
+      state.active = {
+        mode: 'rotate', axis: handle.axis, handle: handle,
+        axisDir: axisDir, startVec: v, startQuat: cube.quat.slice(), center: center
+      };
+    }
+    drag = { kind: 'transform', mode: state.active.mode, axis: state.active.axis, lastX: e.clientX, lastY: e.clientY };
+    canvas.classList.add('is-grabbing');
+  }
+
+  function updateTransform(e) {
+    var frame = view.frame;
+    var ray = frame.unproject(e.clientX, e.clientY);
+    var act = state.active;
+    var spaceTag = state.space === 'local' ? ' · 本地' : '';
+
+    if (act.mode === 'move') {
+      var axisDir = act.axisDir;
+      var delta;
+      if (act.degenerate) {
+        var k = 2 * camD.distance * Math.tan(camD.fov * 0.5) / Math.max(1, renderer.h) * 1.15;
+        delta = (act.startY - e.clientY) * k;
+      } else {
+        var t = PL.rayLineParam(ray.origin, ray.dir, act.startPos, axisDir);
+        if (t === null) return;
+        delta = t - act.startT;
+      }
+      if (e.shiftKey) delta = Math.round(delta / 0.25) * 0.25;
+      cube.position = [
+        act.startPos[0] + axisDir[0] * delta,
+        act.startPos[1] + axisDir[1] * delta,
+        act.startPos[2] + axisDir[2] * delta
+      ];
+      state.dragInfo = {
+        text: AXIS_LETTER[act.axis] + '  ' + (delta >= 0 ? '+' : '') + delta.toFixed(2) + spaceTag,
+        x: e.clientX, y: e.clientY, axis: act.axis
+      };
+    } else if (act.mode === 'move-plane') {
+      var ph = PL.rayPlane(ray.origin, ray.dir, act.n, act.startPos);
+      if (!ph) return;
+      var diff = PL.vSub(ph, act.startHit);
+      var du = PL.vDot(diff, act.u);
+      var dv = PL.vDot(diff, act.v);
+      if (e.shiftKey) {
+        du = Math.round(du / 0.25) * 0.25;
+        dv = Math.round(dv / 0.25) * 0.25;
+      }
+      cube.position = [
+        act.startPos[0] + act.u[0] * du + act.v[0] * dv,
+        act.startPos[1] + act.u[1] * du + act.v[1] * dv,
+        act.startPos[2] + act.u[2] * du + act.v[2] * dv
+      ];
+      state.dragInfo = {
+        text: act.label + '  ' + (du >= 0 ? '+' : '') + du.toFixed(2) +
+          ' / ' + (dv >= 0 ? '+' : '') + dv.toFixed(2) + spaceTag,
+        x: e.clientX, y: e.clientY, axis: act.axis
+      };
+    } else if (act.mode === 'rotate-view') {
+      var dx = e.clientX - act.startX;
+      var dy = e.clientY - act.startY;
+      var angY = dx * 0.006;
+      var angX = dy * 0.006;
+      var qr = PL.qFromAxisAngle(act.right, angX);
+      var qu = PL.qFromAxisAngle(act.up, angY);
+      cube.quat = PL.qNormalize(PL.qMul(qu, PL.qMul(qr, act.startQuat)));
+      state.dragInfo = {
+        text: '自由旋转  ' + Math.round(dx * 0.006 / DEG) + '° / ' + Math.round(dy * 0.006 / DEG) + '°',
+        x: e.clientX, y: e.clientY, axis: -1
+      };
+    } else {
+      var hit = PL.rayPlane(ray.origin, ray.dir, act.axisDir, act.center);
+      if (!hit) return;
+      var v = PL.vNorm(PL.vSub(hit, act.center));
+      if (PL.vLen(v) < 0.5) return;
+      var ang = Math.atan2(
+        PL.vDot(PL.vCross(act.startVec, v), act.axisDir),
+        PL.vDot(act.startVec, v)
+      );
+      if (e.shiftKey) ang = Math.round(ang / (15 * DEG)) * (15 * DEG);
+      cube.quat = PL.qNormalize(PL.qMul(PL.qFromAxisAngle(act.axisDir, ang), act.startQuat));
+      var deg = Math.round(ang / DEG);
+      state.dragInfo = {
+        text: AXIS_LETTER[act.axis] + '  ' + (deg >= 0 ? '+' : '') + deg + '°' + spaceTag,
+        x: e.clientX, y: e.clientY, axis: act.axis
+      };
+    }
+  }
+
+  function updateHover(x, y) {
+    if (!view) return;
+    var hit = hitTest(x, y);
+    state.hover = hit && hit.type === 'gizmo' ? hit.handle : null;
+    state.hoverCube = hit && hit.type === 'cube' ? hit.index : -1;
+    var hm = state.hover ? state.hover.mode : null;
+    canvas.classList.toggle('is-handle', hm === 'move' || hm === 'move-plane');
+    canvas.classList.toggle('is-rotate-handle', hm === 'rotate' || hm === 'rotate-view');
+    canvas.classList.toggle('is-cube-hover', state.hoverCube >= 0 && !state.hover);
+  }
+
+  function beginPinch() {
+    var pts = Array.from(pointers.values());
+    if (pts.length < 2) return;
+    var a = pts[0], b = pts[1];
+    var dx = a.x - b.x, dy = a.y - b.y;
+    drag = {
+      kind: 'pinch',
+      startDist: Math.max(30, Math.hypot(dx, dy)),
+      startMid: { x: (a.x + b.x) * 0.5, y: (a.y + b.y) * 0.5 },
+      startDistance: camD.distance,
+      startTarget: camD.target.slice(),
+      right: view ? view.frame.right.slice() : [1, 0, 0],
+      up: view ? view.frame.up.slice() : [0, 1, 0],
+      k: 2 * camD.distance * Math.tan(camD.fov * 0.5) / Math.max(1, renderer.h)
+    };
+    state.active = null;
+    state.dragInfo = null;
+  }
+
+  function updatePinch() {
+    var pts = Array.from(pointers.values());
+    if (pts.length < 2) return;
+    var a = pts[0], b = pts[1];
+    var dist = Math.max(30, Math.hypot(a.x - b.x, a.y - b.y));
+    var mid = { x: (a.x + b.x) * 0.5, y: (a.y + b.y) * 0.5 };
+    var scale = drag.startDist / dist;
+    camD.distance = PL.clamp(drag.startDistance * scale, 2.4, 28);
+    var dx = mid.x - drag.startMid.x;
+    var dy = mid.y - drag.startMid.y;
+    var k = drag.k;
+    camD.target = [
+      drag.startTarget[0] - drag.right[0] * dx * k + drag.up[0] * dy * k,
+      drag.startTarget[1] - drag.right[1] * dx * k + drag.up[1] * dy * k,
+      drag.startTarget[2] - drag.right[2] * dx * k + drag.up[2] * dy * k
+    ];
+  }
+
+  function onPointerDown(e) {
+    if (e.button > 2) return;
+    e.preventDefault();
+    cancelAnim();
+    clearPreset();
+    try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, button: e.button });
+
+    if (pointers.size === 2) {
+      beginPinch();
+      return;
+    }
+    if (pointers.size > 2) return;
+
+    /* 右键：旋转视角 */
+    if (e.button === 2) {
+      drag = {
+        kind: 'orbit', lastX: e.clientX, lastY: e.clientY,
+        startX: e.clientX, startY: e.clientY, clickCube: -1, canSelect: false
+      };
+      canvas.classList.add('is-grabbing');
+      state.hover = null;
+      canvas.classList.remove('is-handle', 'is-rotate-handle');
+      return;
+    }
+
+    var hit = hitTest(e.clientX, e.clientY, 12);
+    if (e.button === 0 && hit && hit.type === 'gizmo') {
+      beginTransform(hit.handle, e);
+      return;
+    }
+
+    /* 触屏 / 手写笔：单指旋转；鼠标：左键或中键平移 */
+    var touchLike = e.pointerType && e.pointerType !== 'mouse';
+    drag = {
+      kind: (e.button === 0 && touchLike) ? 'orbit' : 'pan',
+      lastX: e.clientX, lastY: e.clientY,
+      startX: e.clientX, startY: e.clientY,
+      clickCube: hit && hit.type === 'cube' ? hit.index : -1,
+      canSelect: e.button === 0
+    };
+    canvas.classList.add('is-grabbing');
+    state.hover = null;
+    canvas.classList.remove('is-handle', 'is-rotate-handle');
+  }
+
+  function onPointerMove(e) {
+    if (!pointers.has(e.pointerId)) {
+      if (e.target === canvas && !drag) updateHover(e.clientX, e.clientY);
+      return;
+    }
+    var p = pointers.get(e.pointerId);
+    p.x = e.clientX;
+    p.y = e.clientY;
+
+    if (!drag) { updateHover(e.clientX, e.clientY); return; }
+
+    if (drag.kind === 'pinch') { updatePinch(); return; }
+
+    if (drag.kind === 'orbit') {
+      var dx = e.clientX - drag.lastX;
+      var dy = e.clientY - drag.lastY;
+      drag.lastX = e.clientX;
+      drag.lastY = e.clientY;
+      camD.yaw -= dx * 0.0042;
+      camD.pitch = clampPitch(camD.pitch + dy * 0.0042);
+      return;
+    }
+
+    if (drag.kind === 'pan') {
+      var pdx = e.clientX - drag.lastX;
+      var pdy = e.clientY - drag.lastY;
+      drag.lastX = e.clientX;
+      drag.lastY = e.clientY;
+      var frame = view.frame;
+      var k = 2 * camD.distance * Math.tan(camD.fov * 0.5) / Math.max(1, renderer.h);
+      camD.target = [
+        camD.target[0] - frame.right[0] * pdx * k + frame.up[0] * pdy * k,
+        camD.target[1] - frame.right[1] * pdx * k + frame.up[1] * pdy * k,
+        camD.target[2] - frame.right[2] * pdx * k + frame.up[2] * pdy * k
+      ];
+      return;
+    }
+
+    if (drag.kind === 'transform' && state.active) {
+      updateTransform(e);
+      return;
+    }
+  }
+
+  function onPointerUp(e) {
+    pointers.delete(e.pointerId);
+    var finished = drag;
+    if (state.active && drag && drag.kind === 'transform') {
+      state.active = null;
+      state.dragInfo = null;
+    }
+    if (pointers.size === 0) {
+      if (finished && finished.canSelect && finished.clickCube >= 0) {
+        var moved = Math.hypot(e.clientX - finished.startX, e.clientY - finished.startY);
+        if (moved < 6) selectCube(finished.clickCube);
+      }
+      drag = null;
+      canvas.classList.remove('is-grabbing');
+      updateHover(e.clientX, e.clientY);
+    } else if (pointers.size === 1) {
+      var p = Array.from(pointers.values())[0];
+      drag = {
+        kind: 'orbit', lastX: p.x, lastY: p.y,
+        startX: p.x, startY: p.y, clickCube: -1, canSelect: false
+      };
+    } else {
+      drag = null;
+    }
+  }
+
+  function onWheel(e) {
+    e.preventDefault();
+    cancelAnim();
+    clearPreset();
+    var delta = e.deltaY;
+    if (e.deltaMode === 1) delta *= 18;
+    else if (e.deltaMode === 2) delta *= 400;
+    camD.distance = PL.clamp(camD.distance * Math.exp(delta * 0.00115), 2.4, 28);
+  }
+
+  /* ------------------------------------------------------------------
+   * 键盘
+   * ------------------------------------------------------------------ */
+  var keys = Object.create(null);
+
+  function isTypingTarget(el) {
+    if (!el) return false;
+    var tag = el.tagName;
+    if (el.isContentEditable) return true;
+    if (tag === 'TEXTAREA') return true;
+    if (tag === 'INPUT') {
+      var type = (el.type || 'text').toLowerCase();
+      return type !== 'range' && type !== 'checkbox' && type !== 'radio' && type !== 'button';
+    }
+    return false;
+  }
+
+  function onKeyDown(e) {
+    if (isTypingTarget(e.target)) return;
+    var k = e.key.toLowerCase();
+    keys[k] = true;
+    if (e.repeat) return;
+    if (k === 'g') setMode('move');
+    else if (k === 'r') setMode('rotate');
+    else if (k === 'h') setMode('none');
+    else if (k === 'l') setSpace(state.space === 'local' ? 'global' : 'local');
+    else if (k === 'f') focusCube();
+    else if (k === '1') applyPreset('one');
+    else if (k === '2') applyPreset('two');
+    else if (k === '3') applyPreset('three');
+    else if (k === '4') applyPreset('aerial');
+    else if (k === 'delete' || k === 'backspace') {
+      if (cubes.length > 1) { deleteCube(); e.preventDefault(); }
+    }
+    else if (k === 'escape') { cancelAnim(); state.dragInfo = null; }
+    else if (k === ' ') {
+      state.spin = !state.spin;
+      ui.tgSpin.checked = state.spin;
+      if (state.spin) clearPreset();
+      e.preventDefault();
+      return;
+    }
+    if (k === 'w' || k === 'a' || k === 's' || k === 'd' || k === 'q' || k === 'e') {
+      cancelAnim();
+      clearPreset();
+    }
+  }
+
+  function onKeyUp(e) {
+    keys[e.key.toLowerCase()] = false;
+  }
+
+  function updateMovement(dt) {
+    if (!view) return;
+    var f = view.frame;
+    var fx = f.forward[0], fz = f.forward[2];
+    var fl = Math.hypot(fx, fz) || 1;
+    fx /= fl; fz /= fl;
+    var rx = f.right[0], rz = f.right[2];
+    var rl = Math.hypot(rx, rz) || 1;
+    rx /= rl; rz /= rl;
+    var speed = camD.distance * 0.9 * ((keys['shift']) ? 2.2 : 1) * dt;
+    var mx = 0, mz = 0, my = 0;
+    if (keys['w']) { mx += fx; mz += fz; }
+    if (keys['s']) { mx -= fx; mz -= fz; }
+    if (keys['d']) { mx += rx; mz += rz; }
+    if (keys['a']) { mx -= rx; mz -= rz; }
+    if (keys['e']) my += 1;
+    if (keys['q']) my -= 1;
+    if (mx || mz || my) {
+      camD.target[0] += mx * speed;
+      camD.target[1] += my * speed;
+      camD.target[2] += mz * speed;
+    }
+  }
+
+  /* ------------------------------------------------------------------
+   * 模式 / 显示
+   * ------------------------------------------------------------------ */
+  function setMode(mode) {
+    state.mode = mode === 'rotate' || mode === 'none' ? mode : 'move';
+    ui.modeSeg.classList.toggle('is-rotate', state.mode === 'rotate');
+    ui.modeSeg.classList.toggle('is-none', state.mode === 'none');
+    ui.modeButtons.forEach(function (b) {
+      b.classList.toggle('is-active', b.getAttribute('data-mode') === state.mode);
+    });
+    state.hover = null;
+    state.active = null;
+    state.dragInfo = null;
+  }
+
+  function setSpace(space) {
+    state.space = space === 'local' ? 'local' : 'global';
+    ui.spaceSeg.classList.toggle('is-second', state.space === 'local');
+    ui.spaceButtons.forEach(function (b) {
+      b.classList.toggle('is-active', b.getAttribute('data-space') === state.space);
+    });
+    state.hover = null;
+  }
+
+  function setPanelCollapsed(side, collapsed) {
+    var panel = side === 'left' ? ui.panelLeft : ui.panelRight;
+    var tab = side === 'left' ? ui.tabLeft : ui.tabRight;
+    var btn = side === 'left' ? ui.collapseLeft : ui.collapseRight;
+    if (!panel) return;
+    if (collapsed) panel.style.animation = 'none';
+    panel.classList.toggle('is-collapsed', collapsed);
+    if (tab) tab.classList.toggle('is-visible', collapsed);
+    if (btn) btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+  }
+
+  /* 不透明模式下隐藏棱线没有意义，置灰对应开关 */
+  function syncOpaqueUI() {
+    if (!ui.tgHidden) return;
+    ui.tgHidden.disabled = !!state.show.opaque;
+    var row = ui.tgHidden.closest('.toggle-row');
+    if (row) row.classList.toggle('is-disabled', !!state.show.opaque);
+  }
+
+  /* ------------------------------------------------------------------
+   * HUD
+   * ------------------------------------------------------------------ */
+  function updateHud(force) {
+    if (!view) return;
+    var vps = view.vps;
+    var frame = view.frame;
+
+    ui.badge.setAttribute('data-type', vps.finiteCount === 1 ? '1' : vps.finiteCount === 2 ? '2' : vps.finiteCount === 3 ? '3' : '0');
+    ui.badgeText.textContent = TYPE_TEXT[vps.type] || '自由视角';
+    ui.badgeMeta.textContent = TYPE_META[vps.type] || '0 VP';
+    if (ui.badgeNote) ui.badgeNote.textContent = TYPE_NOTE[vps.type] || '';
+
+    for (var i = 0; i < ui.vpRows.length; i++) {
+      var vp = vps.axes[i];
+      var row = ui.vpRows[i];
+      var stateEl = row.querySelector('.state');
+      var txt;
+      if (vp.infinite) {
+        txt = '∞ 无穷远';
+        row.classList.remove('is-finite', 'is-out');
+        row.classList.add('is-out');
+      } else {
+        row.classList.add('is-finite');
+        row.classList.toggle('is-out', !vp.onScreen);
+        if (!vp.onScreen) txt = '屏外 · ' + fmtK(vp.dist) + 'px';
+        else if (vp.dist < 6) txt = '屏内 · 中心';
+        else txt = '屏内 · ' + fmtK(vp.dist) + 'px';
+      }
+      if (stateEl.textContent !== txt) stateEl.textContent = txt;
+      row.classList.toggle('is-hot', state.rowAxis === i || state.pinAxis === i);
+      row.classList.toggle('is-finite', !vp.infinite);
+    }
+
+    var p = cube.position;
+    ui.cubePos.textContent = p[0].toFixed(2) + '  ' + p[1].toFixed(2) + '  ' + p[2].toFixed(2);
+    var e = PL.qToEuler(cube.quat);
+    function deg(v) { var r = Math.round(v); return (r === -0 ? 0 : r) + '°'; }
+    ui.cubeRot.textContent = deg(e[0]) + '  ' + deg(e[1]) + '  ' + deg(e[2]);
+
+    var fovDeg = Math.round(camNow.fov / DEG);
+    ui.fovValue.textContent = fovDeg + '°';
+    if (document.activeElement !== ui.fovRange) ui.fovRange.value = String(fovDeg);
+    ui.focalValue.textContent = Math.round(12 / Math.tan(camNow.fov * 0.5)) + ' mm';
+    var eyeY = frame.pos[1];
+    ui.eyeValue.textContent = (eyeY >= 0 ? '' : '−') + Math.abs(eyeY).toFixed(2) + ' m';
+    ui.fps.textContent = String(Math.round(state.fps));
+  }
+
+  /* ------------------------------------------------------------------
+   * 主循环
+   * ------------------------------------------------------------------ */
+  var lastTime = 0;
+
+  function tick(now) {
+    requestAnimationFrame(tick);
+    if (!lastTime) lastTime = now;
+    var dt = Math.min((now - lastTime) / 1000, 0.05);
+    lastTime = now;
+    if (dt <= 0) dt = 0.0001;
+    state.time += dt;
+    state.fps = state.fps * 0.92 + (1 / dt) * 0.08;
+
+    updateAnim(dt);
+    smoothCamera(dt);
+    updateMovement(dt);
+    if (state.spin && !state.anim && !state.active) {
+      cube.quat = PL.qNormalize(PL.qMul(PL.qFromAxisAngle([0, 1, 0], 0.42 * dt), cube.quat));
+    }
+    updateScene();
+
+    var highlight = state.rowAxis >= 0 ? state.rowAxis : state.pinAxis >= 0 ? state.pinAxis :
+      (state.hover ? state.hover.axis : -1);
+
+    renderer.draw({
+      frame: view.frame,
+      worlds: view.worlds,
+      world: view.world,
+      cubeViews: view.cubeViews,
+      vps: view.vps,
+      lines: view.lines,
+      horizon: view.horizon,
+      gizmo: view.gizmo,
+      show: state.show,
+      selected: state.selected,
+      mode: state.mode,
+      space: state.space,
+      hoverHandle: state.hover,
+      activeHandle: state.active ? state.active.handle : null,
+      highlightAxis: highlight,
+      dragInfo: state.dragInfo,
+      gridCenter: [cube.position[0], 0, cube.position[2]]
+    }, state.time, safeRect);
+
+    if (now - lastHud > 90) {
+      lastHud = now;
+      updateHud();
+    }
+
+    if (!ready) {
+      ready = true;
+      window.__PLAB_READY__ = true;
+    }
+  }
+
+  /* ------------------------------------------------------------------
+   * 初始化
+   * ------------------------------------------------------------------ */
+  function bindEvents() {
+    canvas.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
+    canvas.addEventListener('wheel', onWheel, { passive: false });
+    canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+    window.addEventListener('contextmenu', function (e) {
+      var tag = e.target && e.target.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      e.preventDefault();
+    });
+    canvas.addEventListener('dblclick', function (e) {
+      e.preventDefault();
+      var index = pickCubeAt(e.clientX, e.clientY);
+      if (index >= 0) selectCube(index);
+      focusCube();
+    });
+    canvas.addEventListener('pointerleave', function () {
+      if (!drag) {
+        state.hover = null;
+        state.hoverCube = -1;
+        canvas.classList.remove('is-handle', 'is-rotate-handle', 'is-cube-hover');
+      }
+    });
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    window.addEventListener('blur', function () {
+      keys = Object.create(null);
+      pointers.clear();
+      drag = null;
+      canvas.classList.remove('is-grabbing');
+    });
+    window.addEventListener('resize', function () {
+      renderer.resize();
+      safeRect = computeSafe(renderer.w, renderer.h);
+      if (renderer.w <= 900) {
+        setPanelCollapsed('left', false);
+        setPanelCollapsed('right', false);
+      }
+    });
+
+    ui.presetButtons.forEach(function (b) {
+      b.addEventListener('click', function () { applyPreset(b.getAttribute('data-preset')); });
+    });
+
+    ui.modeButtons.forEach(function (b) {
+      b.addEventListener('click', function () { setMode(b.getAttribute('data-mode')); });
+    });
+
+    ui.spaceButtons.forEach(function (b) {
+      b.addEventListener('click', function () { setSpace(b.getAttribute('data-space')); });
+    });
+
+    ui.vpRows.forEach(function (row, i) {
+      row.addEventListener('pointerenter', function () { state.rowAxis = i; });
+      row.addEventListener('pointerleave', function () {
+        if (state.rowAxis === i) state.rowAxis = -1;
+      });
+      row.addEventListener('click', function () {
+        state.pinAxis = state.pinAxis === i ? -1 : i;
+      });
+    });
+
+    ui.fovRange.addEventListener('input', function () {
+      cancelAnim();
+      clearPreset();
+      camD.fov = PL.clamp(parseFloat(ui.fovRange.value) || 90, 24, 100) * DEG;
+    });
+
+    ui.tgLines.addEventListener('change', function () { state.show.lines = ui.tgLines.checked; });
+    ui.tgPoints.addEventListener('change', function () { state.show.points = ui.tgPoints.checked; });
+    ui.tgOtherLines.addEventListener('change', function () { state.show.otherLines = ui.tgOtherLines.checked; });
+    ui.tgOtherPoints.addEventListener('change', function () { state.show.otherPoints = ui.tgOtherPoints.checked; });
+    ui.tgHorizon.addEventListener('change', function () { state.show.horizon = ui.tgHorizon.checked; });
+    ui.tgGrid.addEventListener('change', function () { state.show.grid = ui.tgGrid.checked; });
+    ui.tgOpaque.addEventListener('change', function () {
+      state.show.opaque = ui.tgOpaque.checked;
+      syncOpaqueUI();
+    });
+    ui.tgHidden.addEventListener('change', function () { state.show.hidden = ui.tgHidden.checked; });
+    ui.tgLabels.addEventListener('change', function () { state.show.labels = ui.tgLabels.checked; });
+    ui.tgSpin.addEventListener('change', function () {
+      state.spin = ui.tgSpin.checked;
+      if (state.spin) clearPreset();
+    });
+
+    ui.btnAlign.addEventListener('click', alignCube);
+    ui.btnResetCube.addEventListener('click', resetCube);
+    ui.btnFocus.addEventListener('click', focusCube);
+    ui.btnResetView.addEventListener('click', resetView);
+    if (ui.btnAddCube) ui.btnAddCube.addEventListener('click', addCube);
+    if (ui.btnDeleteCube) ui.btnDeleteCube.addEventListener('click', deleteCube);
+
+    if (ui.panelToggle) {
+      ui.panelToggle.addEventListener('click', function () {
+        var open = document.querySelector('.panel-right').classList.toggle('is-open');
+        ui.panelToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      });
+    }
+
+    if (ui.collapseLeft) {
+      ui.collapseLeft.addEventListener('click', function () { setPanelCollapsed('left', true); });
+      ui.tabLeft.addEventListener('click', function () { setPanelCollapsed('left', false); });
+    }
+    if (ui.collapseRight) {
+      ui.collapseRight.addEventListener('click', function () { setPanelCollapsed('right', true); });
+      ui.tabRight.addEventListener('click', function () { setPanelCollapsed('right', false); });
+    }
+  }
+
+  function start() {
+    setMode('move');
+    setSpace('local');
+    bindEvents();
+    syncOpaqueUI();
+    updateCubeUI();
+    updateScene();
+    updateHud(true);
+    requestAnimationFrame(tick);
+  }
+
+  /* 调试 / 自动化接口 */
+  window.__PLAB__ = {
+    state: state,
+    cubes: cubes,
+    get cube() { return cube; },
+    get selectedIndex() { return selectedIndex; },
+    get safeRect() { return safeRect; },
+    camera: camNow,
+    cameraDesired: camD,
+    renderer: renderer,
+    get view() { return view; },
+    setPreset: applyPreset,
+    setMode: setMode,
+    setSpace: setSpace,
+    addCube: addCube,
+    deleteCube: deleteCube,
+    selectCube: selectCube,
+    focus: focusCube,
+    resetView: resetView,
+    resetCube: resetCube,
+    align: alignCube,
+    setCamera: function (o) {
+      cancelAnim();
+      clearPreset();
+      if (o.target) camD.target = o.target.slice();
+      if (o.yaw !== undefined) camD.yaw = o.yaw;
+      if (o.pitch !== undefined) camD.pitch = o.pitch;
+      if (o.distance !== undefined) camD.distance = o.distance;
+      if (o.fov !== undefined) camD.fov = o.fov;
+      copyCam(camNow, camD);
+    },
+    setCube: function (position, quat) {
+      cancelAnim();
+      clearPreset();
+      if (position) cube.position = position.slice();
+      if (quat) cube.quat = quat.slice();
+    },
+    show: function (patch) { Object.assign(state.show, patch); },
+    fps: function () { return state.fps; }
+  };
+
+  start();
+})();
+
+</script>
+</body>
+</html>

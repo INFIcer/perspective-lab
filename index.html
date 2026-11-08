@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#f3f6fc">
+<title>透视实验室 · Perspective Lab</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+  <canvas id="stage" aria-label="三维透视场景"></canvas>
+
+  <header class="topbar">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="brandGrad" x1="6" y1="4" x2="42" y2="44" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#7fa6ff"/>
+            <stop offset=".55" stop-color="#4b6bfb"/>
+            <stop offset="1" stop-color="#13a894"/>
+          </linearGradient>
+        </defs>
+        <path d="M24 3.6 42.4 14v20L24 44.4 5.6 34V14L24 3.6Z" stroke="url(#brandGrad)" stroke-width="1.5"/>
+        <path d="M24 3.6v20.2m0 0L5.6 14M24 23.8 42.4 14M24 23.8v20.6" stroke="url(#brandGrad)" stroke-width="1.05" opacity=".55"/>
+        <circle cx="24" cy="23.8" r="2.1" fill="#ffffff" stroke="#4b6bfb" stroke-width="1.2"/>
+        <circle cx="24" cy="23.8" r="5.2" stroke="#4b6bfb" stroke-opacity=".3"/>
+      </svg>
+      <div class="brand-text">
+        <div class="brand-title">透视实验室</div>
+        <div class="brand-sub">PERSPECTIVE&nbsp;LAB</div>
+      </div>
+    </div>
+
+    <div class="badge" id="badge">
+      <span class="badge-dot" id="badgeDot"></span>
+      <span class="badge-text" id="badgeText">两点透视</span>
+      <span class="badge-sep"></span>
+      <span class="badge-meta" id="badgeMeta">2 VP</span>
+    </div>
+    <div class="badge-note" id="badgeNote">两组水平棱分别向两侧消失 · 竖直棱保持平行</div>
+
+    <div class="top-meta">
+      <span class="meta-dot"></span>
+      <span id="fps">60</span><span class="meta-unit">FPS</span>
+    </div>
+  </header>
+
+  <aside class="panel panel-left" id="panelLeft">
+    <button class="panel-collapse" id="collapseLeft" type="button" title="收起左侧面板" aria-label="收起左侧面板" aria-expanded="true">
+      <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M10 3 5 8l5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <section class="panel-section">
+      <h2 class="section-title">视角预设<span>PRESETS</span></h2>
+      <div class="preset-grid" id="presetGrid">
+        <button class="preset" data-preset="one" type="button" title="一点透视（快捷键 1）">
+          <span class="preset-name">一点透视</span><span class="preset-sub">ONE-POINT</span>
+        </button>
+        <button class="preset" data-preset="two" type="button" title="两点透视（快捷键 2）">
+          <span class="preset-name">两点透视</span><span class="preset-sub">TWO-POINT</span>
+        </button>
+        <button class="preset" data-preset="three" type="button" title="三点透视（快捷键 3）">
+          <span class="preset-name">三点透视</span><span class="preset-sub">THREE-POINT</span>
+        </button>
+        <button class="preset" data-preset="aerial" type="button" title="俯瞰视角（快捷键 4）">
+          <span class="preset-name">俯瞰视角</span><span class="preset-sub">AERIAL</span>
+        </button>
+      </div>
+    </section>
+
+    <section class="panel-section">
+      <h2 class="section-title">消失点<span>VANISHING POINTS</span></h2>
+      <div class="vp-list" id="vpList">
+        <button class="vp-row" data-axis="0" type="button" title="悬停高亮 X 轴消失线，点击固定高亮">
+          <span class="dot"></span><span class="name">X 轴</span><span class="state">—</span>
+        </button>
+        <button class="vp-row" data-axis="1" type="button" title="悬停高亮 Y 轴消失线，点击固定高亮">
+          <span class="dot"></span><span class="name">Y 轴</span><span class="state">—</span>
+        </button>
+        <button class="vp-row" data-axis="2" type="button" title="悬停高亮 Z 轴消失线，点击固定高亮">
+          <span class="dot"></span><span class="name">Z 轴</span><span class="state">—</span>
+        </button>
+      </div>
+    </section>
+
+    <section class="panel-section">
+      <h2 class="section-title">显示<span>DISPLAY</span></h2>
+      <div class="toggle-list">
+        <label class="toggle-row"><span>消失线</span><input type="checkbox" id="tgLines" checked><i class="switch"></i></label>
+        <label class="toggle-row"><span>消失点</span><input type="checkbox" id="tgPoints" checked><i class="switch"></i></label>
+        <label class="toggle-row" title="为未选中的立方体显示消失线"><span>其他立方体消失线</span><input type="checkbox" id="tgOtherLines" checked><i class="switch"></i></label>
+        <label class="toggle-row" title="为未选中的立方体显示消失点"><span>其他立方体消失点</span><input type="checkbox" id="tgOtherPoints" checked><i class="switch"></i></label>
+        <label class="toggle-row"><span>地平线</span><input type="checkbox" id="tgHorizon" checked><i class="switch"></i></label>
+        <label class="toggle-row"><span>地面网格</span><input type="checkbox" id="tgGrid" checked><i class="switch"></i></label>
+        <label class="toggle-row" title="关闭后立方体为半透明玻璃材质"><span>方块不透明</span><input type="checkbox" id="tgOpaque" checked><i class="switch"></i></label>
+        <label class="toggle-row"><span>隐藏棱线</span><input type="checkbox" id="tgHidden" checked><i class="switch"></i></label>
+        <label class="toggle-row"><span>标注文字</span><input type="checkbox" id="tgLabels" checked><i class="switch"></i></label>
+      </div>
+    </section>
+  </aside>
+
+  <aside class="panel panel-right" id="panelRight">
+    <button class="panel-collapse" id="collapseRight" type="button" title="收起右侧面板" aria-label="收起右侧面板" aria-expanded="true">
+      <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <section class="panel-section">
+      <h2 class="section-title">立方体<span>CUBE</span></h2>
+      <div class="cube-toolbar">
+        <div class="cube-list" id="cubeList" aria-label="立方体列表"></div>
+        <button class="cube-btn" id="btnAddCube" type="button" title="添加立方体" aria-label="添加立方体">+</button>
+        <button class="cube-btn danger" id="btnDeleteCube" type="button" title="删除选中的立方体" aria-label="删除选中的立方体">
+          <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M5 4.5l.6 8.5h4.8l.6-8.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <div class="segmented mode-3" id="modeSeg">
+        <button class="seg is-active" data-mode="move" type="button" title="移动立方体（G）">移动<kbd>G</kbd></button>
+        <button class="seg" data-mode="rotate" type="button" title="旋转立方体（R）">旋转<kbd>R</kbd></button>
+        <button class="seg" data-mode="none" type="button" title="隐藏变换手柄，仅观察（H）">无操作<kbd>H</kbd></button>
+        <span class="seg-thumb" id="segThumb"></span>
+      </div>
+
+      <div class="gizmo-tip">轴箭头 = 单轴移动 · 方块 = 平面二维移动 · 圆环 = 绕轴旋转 · 白色外环 = 视角自由旋转</div>
+
+      <div class="field-head">
+        <span>坐标系</span>
+        <span class="field-hint">全局 / 本地 <kbd>L</kbd></span>
+      </div>
+      <div class="segmented is-compact is-second" id="spaceSeg">
+        <button class="seg" data-space="global" type="button" title="手柄沿世界坐标轴（快捷键 L 切换）">全局</button>
+        <button class="seg is-active" data-space="local" type="button" title="手柄随立方体自身坐标轴（快捷键 L 切换）">本地</button>
+        <span class="seg-thumb" id="spaceThumb"></span>
+      </div>
+      <div class="readouts">
+        <div class="readout"><span class="readout-label">位置</span><span class="readout-value" id="cubePos">0.00&nbsp; 0.90&nbsp; 0.00</span></div>
+        <div class="readout"><span class="readout-label">旋转</span><span class="readout-value" id="cubeRot">0°&nbsp; 0°&nbsp; 0°</span></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" id="btnAlign" type="button" title="把立方体旋转回与世界轴对齐">对齐世界轴</button>
+        <button class="btn" id="btnResetCube" type="button" title="立方体回到初始位置和角度">复位</button>
+      </div>
+      <label class="toggle-row" title="立方体缓慢自转，观察消失点实时变化"><span>自动旋转</span><input type="checkbox" id="tgSpin"><i class="switch"></i></label>
+    </section>
+
+    <section class="panel-section">
+      <h2 class="section-title">摄像机<span>CAMERA</span></h2>
+      <div class="slider-head"><span>视场角</span><b id="fovValue">90°</b></div>
+      <input class="slider" id="fovRange" type="range" min="24" max="100" step="1" value="90" aria-label="视场角" title="镜头视场角：越大越广，消失点越靠近画面中心">
+      <div class="readouts">
+        <div class="readout"><span class="readout-label">等效焦距</span><span class="readout-value" id="focalValue">12 mm</span></div>
+        <div class="readout"><span class="readout-label">视线高度</span><span class="readout-value" id="eyeValue">0.96 m</span></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" id="btnFocus" type="button" title="把摄像机对准立方体（F）">聚焦立方体<kbd>F</kbd></button>
+        <button class="btn" id="btnResetView" type="button" title="回到初始视角">重置视角</button>
+      </div>
+    </section>
+  </aside>
+
+  <footer class="hintbar" id="hintbar">
+    <span class="hint"><b>左键拖动</b>平移视角</span>
+    <span class="hint-sep"></span>
+    <span class="hint"><b>拖动箭头 / 圆环</b>操作立方体</span>
+    <span class="hint-sep"></span>
+    <span class="hint"><b>L</b>全局 / 本地坐标系</span>
+    <span class="hint-sep"></span>
+    <span class="hint"><b>右键拖动</b>旋转视角</span>
+    <span class="hint-sep"></span>
+    <span class="hint"><b>滚轮</b>缩放</span>
+    <span class="hint-sep"></span>
+    <span class="hint"><b>W A S D / Q E</b>自由移动</span>
+  </footer>
+
+  <button class="panel-tab panel-tab-left" id="tabLeft" type="button" title="展开左侧面板" aria-label="展开左侧面板">
+    <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+  <button class="panel-tab panel-tab-right" id="tabRight" type="button" title="展开右侧面板" aria-label="展开右侧面板">
+    <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M10 3 5 8l5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+
+  <button class="panel-toggle" id="panelToggle" type="button" aria-label="显示或隐藏控制面板" aria-expanded="false">
+    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path d="M3 6h14M3 10h14M3 14h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      <circle cx="7" cy="6" r="2" fill="currentColor"/>
+      <circle cx="13" cy="10" r="2" fill="currentColor"/>
+      <circle cx="9" cy="14" r="2" fill="currentColor"/>
+    </svg>
+  </button>
+</div>
+
+<script src="js/core.js"></script>
+<script src="js/scene.js"></script>
+<script src="js/render.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

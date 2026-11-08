@@ -1,0 +1,27 @@
+# ---- OS / editor ----
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# ---- 依赖与缓存 ----
+node_modules/
+.pnpm-store/
+.npm-cache/
+*.log
+
+# ---- 本地临时目录（截图脚本使用的无头 Chrome 配置）----
+.chrome*/
+.tmp/
+
+# ---- 生成物 ----
+# 截图目录只保留 README 引用的几张，其余由 tools/capture.mjs 生成
+shots/*
+!shots/01-default.png
+!shots/17-local-space.png
+!shots/19-multi-cubes.png
+!shots/31-plane-move.png
+!shots/32-view-rotate.png
